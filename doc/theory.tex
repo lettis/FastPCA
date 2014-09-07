@@ -1,0 +1,87 @@
+\documentclass[a4paper]{article}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{bbm}
+\usepackage{color}
+\usepackage{graphicx} 
+\usepackage{caption}
+\usepackage{subcaption}
+
+\newcommand{\X} {\mathbf{X}}
+
+\newcommand{\todo}[1] { \emph{ {\color{red}TODO: #1} } }
+
+\begin{document}
+
+\section{Incremental calculation of a covariance matrix}
+Given a $T\times N$ matrix $m$ of measurements in $N$ variables
+at $T$ timesteps, the covariance matrix of all variables is given by
+\begin{align}
+  C_{ij} &= \left<\left(\X_i- \left<\X_i\right>\right) \left(\X_j-\left<\X_j\right>\right)\right>,
+\end{align}
+where $\X_i \in \mathbb{R}^T$ denotes column $i$ of matrix $m$ with all observations
+of variable $i$ and $\left< \dots \right>$ is the average of the given observations.
+Using the definition
+\begin{align}
+  \mu_i := \left< \X_i \right>,
+\end{align}
+the construction of the covariance matrix can be expressed as
+\begin{align}
+  C_{ij} &= \left<\left(\X_i - \mu_i\right) \left(\X_j - \mu_j\right)\right>\\
+         &= \left<\X_i \X_j\right> - \left< \mu_i \X_j \right> - \left< \mu_j \X_i \right> + \left< \mu_i \mu_j \right>\\
+         &= \left<\X_i \X_j\right> - \mu_i \left<\X_j \right> - \mu_j \left<\X_i\right> + \left< \mu_i \mu_j \right>\\
+         &= \left<\X_i \X_j\right> - \mu_i \mu_j - \mu_j \mu_i + \mu_i \mu_j\\
+         &= \left<\X_i \X_j\right> - \mu_i \mu_j\\
+         &= \frac{1}{T} \sum_t m_{ti} m_{tj} - \mu_i \mu_j\\
+         &= \frac{1}{T-1}\left( \sum_t m_{ti} m_{tj} - \frac{1}{T} \left(\sum_t m_{ti}\right) \left(\sum_t m_{tj}\right) \right)
+            \label{eq:cov_standard}.
+\end{align}
+Following this expression, we see that the covariance matrix can be
+constructed incrementally by summing over the observations with constant memory consumption.
+The used memory will be of order
+\begin{align}
+  \mathcal{O}_M &= \mathcal{O}_C + N\mathcal{O}_\mu\\
+                &= \mathcal{O}\left( (N-1)(N-2) / 2 \right) + N\mathcal{O}\left(1\right)\\
+                &= \mathcal{O}\left( N^2 \right),
+\end{align}
+with the memory consumption $\mathcal{O}_C$ of the (symmetric) covariance matrix and
+the memory consumption $\mathcal{O}_\mu$ per observable average.
+The runtime behavior will be of order
+\begin{align}
+  \mathcal{O}_R &= \mathcal{O}\left(T N\left(N-1\right)\right).
+\end{align}
+Assuming the number of observations $T$ is much greater than the number of variables $N$, i.e. $T \gg N$,
+the runtime behavior may be described as being linear in $T$:
+\begin{align}
+  \mathcal{O}_R &= \mathcal{O}\left(T\right).
+\end{align}
+
+\subsection{Weighted variables}
+To construct a covariance matrix with weighted variables (e.g. a mass-weighted covariance of molecular coordinates),
+one previously defines a set of $N$ weights $w_i$ and expands the given incremental form (\ref{eq:cov_standard}) to
+\begin{align}
+  \tilde{C}_{ij} &= \frac{1}{T}\left( \sum_t w_i m_{ti} w_j m_{tj} - \frac{1}{T} \left(\sum_t w_i m_{ti}\right) \left(\sum_t w_j m_{tj}\right) \right)\\
+                 &= \frac{1}{T}\left( w_i w_j \sum_t m_{ti} m_{tj} - \frac{1}{T} \left(w_i \sum_t m_{ti}\right) \left(w_j \sum_t m_{tj}\right) \right)\\
+                 &= \frac{w_i w_j}{T}\left(\sum_t m_{ti} m_{tj} - \frac{1}{T} \left(\sum_t m_{ti}\right) \left(\sum_t m_{tj}\right) \right).
+\end{align}
+Here, it is assumed that all the weights are normalized, i.e. that they fulfill the relation
+\begin{align}
+  \sum_i^N w_i = 1,
+\end{align}
+with $0 \le w_i \le 1$.
+If this is not the case, one can trivially transform the set of weights to a normalized one by dividing the weights by their sum.
+
+\subsection{Weighted observations}
+To construct a covariance matrix based on observations of different quality, we introduce the weights $\nu\left(t\right)$, defined
+for an observation at time $t$.
+Again, one can extend eq. (\ref{eq:cov_standard}) to a weighted form:
+\begin{align}
+  \hat{C}_{ij} &= \frac{1}{\tau}\left( \sum_t \nu\left(t\right) m_{ti} m_{tj}
+                   - \frac{1}{\tau} \left(\sum_t \nu\left(t\right) m_{ti}\right) \left(\sum_t \nu\left(t\right) m_{tj}\right) \right),
+\end{align}
+with $\tau = \sum_t \nu\left(t\right)$ being the total weight.
+In the case of unweighted observations, i.e. for $\nu\left(t\right) = 1 \; \forall \; t$, this reduces to the standard definition
+of a covariance matrix (eq. (\ref{eq:cov_standard})).
+
+\end{document}
