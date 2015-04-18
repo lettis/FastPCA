@@ -1,6 +1,6 @@
 # About #
 
-FastCA is a PCA-calculator programmed in C++(11).
+FastPCA is a PCA-calculator programmed in C++(11).
 Computation is parallelized with OpenMP.
 
 For fast matrix diagonalization, LAPACK is used (and needed, of course).
