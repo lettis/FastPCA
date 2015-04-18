@@ -24,6 +24,7 @@ Create a build-directory in the project root and change into
 that directory:
 
  # mkdir build
+ 
  # cd build
 
 Run cmake, based on the underlying project:
