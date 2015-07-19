@@ -1,9 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
-project (FastCA) 
+project (FastPCA) 
 
-#TODO copy fastca binary to build-dir
-#TODO build doc
-#TODO flags for NATIVE_ARCH, USE_PHI, SSE, AVX, etc.
 set (CMAKE_CXX_FLAGS "-std=c++11 -fopenmp -O2 -ffast-math")
 
 find_package (Boost COMPONENTS program_options REQUIRED)

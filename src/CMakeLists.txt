@@ -25,8 +25,8 @@ add_library(covariance covariance.cpp file_io.cpp util.cpp matrix.cpp errors.cpp
 
 add_subdirectory(xdrfile)
 
-add_executable (fastca pca.cpp) 
-target_link_libraries (fastca covariance xdrfile ${Boost_LIBRARIES} ${LAPACK_LIBRARIES})
+add_executable (fastpca pca.cpp) 
+target_link_libraries (fastpca covariance xdrfile ${Boost_LIBRARIES} ${LAPACK_LIBRARIES})
 
-install(TARGETS fastca DESTINATION bin)
+install(TARGETS fastpca RUNTIME DESTINATION .)
 
