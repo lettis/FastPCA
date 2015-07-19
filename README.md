@@ -1,6 +1,6 @@
-= About =
+# About #
 
-FastCA is a PCA-calculator programmed in C++(11).
+FastPCA is a PCA-calculator programmed in C++(11).
 Computation is parallelized with OpenMP.
 
 For fast matrix diagonalization, LAPACK is used (and needed, of course).
@@ -18,12 +18,13 @@ Happy Computing.
 
 
 
-= Compilation =
+# Compilation #
 
 Create a build-directory in the project root and change into
 that directory:
 
  # mkdir build
+ 
  # cd build
 
 Run cmake, based on the underlying project:
@@ -42,7 +43,7 @@ compilation, e.g. 'make -j 4' for up to four parallel jobs):
 Now, you should find the 'fastca' binary in the 'src' folder.
 
 
-== Requirements ==
+## Requirements ##
   * LAPACK
   * Boost (program_options), min. version 1.49
   * cmake, min. version 2.8
