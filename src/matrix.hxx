@@ -22,16 +22,19 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-#include "errors.h"
-#include "matrix.h"
+#include "errors.hpp"
+#include "matrix.hpp"
 
 #include <utility>
 #include <algorithm>
 #include <functional>
 #include <iomanip>
+
+// disable assertions
+//#define NDEBUG
 #include <cassert>
 
-namespace FastCA {
+namespace FastPCA {
 
 namespace {
 
@@ -204,9 +207,8 @@ Matrix<T> Matrix<T>::operator*(const Matrix<T>& other) {
     throw MatrixNotAlignedError();
   } else {
     Matrix<T> c(this->_n_rows, other._n_cols);
-    //TODO: test impact of this (with and without collapse)
     std::size_t i, j, k;
-    #pragma omp parallel for collapse(2) default(shared) private(i,j,k)
+    #pragma omp parallel for collapse(2) default(none) private(i,j,k) shared(c,other)
     for (i=0; i < this->_n_rows; ++i) {
       for (j=0; j < this->_n_cols; ++j) {
         for (k=0; k < this->_n_cols; ++k) {
@@ -340,5 +342,5 @@ std::ostream& operator<< (std::ostream& out, SymmetricMatrix<T>& s) {
   return out;
 }
 
-} // end namespace FastCA
+} // end namespace FastPCA
 

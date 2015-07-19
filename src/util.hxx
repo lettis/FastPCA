@@ -25,12 +25,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#include "util.h"
-#include "errors.h"
+#include "util.hpp"
+#include "errors.hpp"
 
 #include <string>
+#include <cmath>
 
-namespace FastCA {
+namespace FastPCA {
 
 template <class T>
 std::vector<T> parse_line(std::string line) {
@@ -58,5 +59,19 @@ std::vector<T> parse_line(std::string line) {
   return out;
 }
 
-} // namespace FastCA
+template <class T>
+void
+deg2rad(Matrix<T>& m) {
+  std::size_t nr = m.n_rows();
+  std::size_t nc = m.n_cols();
+  std::size_t i,j;
+  T conv = M_PI / 180.0;
+  for (j=0; j < nc; ++j) {
+    for (i=0; i < nr; ++i) {
+      m(i,j) *= conv;
+    }
+  }
+}
+
+} // namespace FastPCA
 

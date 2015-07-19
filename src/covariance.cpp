@@ -24,16 +24,16 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#include "covariance.h"
-#include "file_io.h"
-#include "errors.h"
-#include "util.h"
+#include "covariance.hpp"
+#include "file_io.hpp"
+#include "errors.hpp"
+#include "util.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <algorithm>
 #include <functional>
+#include <cmath>
 
 #include <omp.h>
 
@@ -45,103 +45,195 @@ extern "C" {
 }
 
 
-namespace FastCA {
+namespace FastPCA {
 
-namespace {
+  namespace {
 
-CovAccumulation::CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n)
-  : m(m),
-    sum_observations(sum),
-    n_observations(n) {
-}
+    CovAccumulation::CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n)
+      : m(m),
+        sum_observations(sum),
+        n_observations(n) {
+    }
 
-CovAccumulation::CovAccumulation(std::size_t n_observations, std::size_t n_observables)
-  : m(SymmetricMatrix<double>(n_observables)),
-    sum_observations(std::vector<double>(n_observables)),
-    n_observations(n_observations) {
-}
+    CovAccumulation::CovAccumulation(std::size_t n_observations, std::size_t n_observables)
+      : m(SymmetricMatrix<double>(n_observables)),
+        sum_observations(std::vector<double>(n_observables)),
+        n_observations(n_observations) {
+    }
 
-CovAccumulation accumulate_covariance(const Matrix<double>& m) {
-  const std::size_t nr = m.n_rows();
-  const std::size_t nc = m.n_cols();
-  CovAccumulation c(nr, nc);
-  std::size_t i, j, t;
-  double cc;
-  // calculate (i,j)-part of covariances
-  for (i = 0; i < nc; ++i) {
-    for (j = 0; j <= i; ++j) {
-      cc = 0.0;
-      #pragma omp parallel for default(shared) firstprivate(i,j) private(t) reduction(+:cc)
-      for (t = 0; t < nr; ++t) {
-        cc += (m(t,i) * m(t,j));
+    CovAccumulation
+    accumulate_covariance(const Matrix<double>& m) {
+      const std::size_t nr = m.n_rows();
+      const std::size_t nc = m.n_cols();
+      CovAccumulation c(nr, nc);
+      std::size_t i, j, t;
+      double cc;
+      // calculate (i,j)-part of covariances
+      for (i = 0; i < nc; ++i) {
+        for (j = 0; j <= i; ++j) {
+          cc = 0.0;
+          #pragma omp parallel for default(none)\
+                                   firstprivate(i,j)\
+                                   private(t)\
+                                   shared(m,c)\
+                                   reduction(+:cc)
+          for (t = 0; t < nr; ++t) {
+            cc += (m(t,i) * m(t,j));
+          }
+          c.m(i,j) = cc;
+        }
+        cc = 0.0;
+        #pragma omp parallel for default(none)\
+                                 firstprivate(i)\
+                                 private(t)\
+                                 shared(c,m)\
+                                 reduction(+:cc)
+        for (t = 0; t < nr; ++t) {
+          cc += m(t,i);
+        }
+        c.sum_observations[i] = cc;
       }
-      c.m(i,j) = cc;
+      c.n_observations = nr;
+      return c;
     }
-    cc = 0.0;
-    #pragma omp parallel for default(shared) firstprivate(i) private(t) reduction(+:cc)
-    for (t = 0; t < nr; ++t) {
-      cc += m(t,i);
+
+    CovAccumulation
+    join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2) {
+      assert(c1.m.n_cols() == c2.m.n_cols());
+      SymmetricMatrix<double> joint_m = c1.m + c2.m;
+      std::vector<double> joint_sum(c1.sum_observations.size());
+      std::size_t joint_n_obs = c1.n_observations + c2.n_observations;
+      std::transform(c1.sum_observations.begin(),
+                     c1.sum_observations.end(),
+                     c2.sum_observations.begin(),
+                     joint_sum.begin(),
+                     std::plus<double>());
+      return {joint_m, joint_sum, joint_n_obs};
     }
-    c.sum_observations[i] = cc;
-  }
-  c.n_observations = nr;
-  return c;
-}
 
-CovAccumulation join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2) {
-  assert(c1.m.n_cols() == c2.m.n_cols());
-  SymmetricMatrix<double> joint_m = c1.m + c2.m;
-  std::vector<double> joint_sum(c1.sum_observations.size());
-  std::size_t joint_n_obs = c1.n_observations + c2.n_observations;
-  std::transform(c1.sum_observations.begin(),
-                 c1.sum_observations.end(),
-                 c2.sum_observations.begin(),
-                 joint_sum.begin(),
-                 std::plus<double>());
-  return {joint_m, joint_sum, joint_n_obs};
-}
-
-SymmetricMatrix<double> get_covariance(const CovAccumulation& acc) {
-  SymmetricMatrix<double> sm = acc.m;
-  std::size_t i, j;
-  for (i = 0; i < sm.n_cols(); ++i) {
-    for (j = 0; j <= i; ++j) {
-      sm(i,j) = (sm(i,j) - (acc.sum_observations[i] *
-                            acc.sum_observations[j] /
-                            (acc.n_observations)      )) / (acc.n_observations-1);
+    SymmetricMatrix<double>
+    get_covariance(const CovAccumulation& acc) {
+      SymmetricMatrix<double> sm = acc.m;
+      std::size_t i, j;
+      for (i = 0; i < sm.n_cols(); ++i) {
+        for (j = 0; j <= i; ++j) {
+          sm(i,j) = (sm(i,j) - (acc.sum_observations[i] *
+                                acc.sum_observations[j] /
+                                (acc.n_observations)      )) / (acc.n_observations-1);
+        }
+      }
+      return sm;
     }
+
+    double
+    angular_distance(double theta1, double theta2) {
+      double abs_diff = std::abs(theta1 - theta2);
+      if (abs_diff <= M_PI) {
+        return abs_diff;
+      } else {
+        return abs_diff - (2*M_PI);
+      }
+    }
+  } // end local namespace
+
+
+  namespace Periodic {
+    // because of the periodicity of the underlying data,
+    // we cannot use the summation trick we use above
+    // to accumulate the covariance in one pass.
+    // instead, we need to account for periodic boundary
+    // checks for every observation. therefore, we have to
+    // compute the means beforehand and compute the covariance
+    // in a second pass through the data.
+    SymmetricMatrix<double>
+    covariance_matrix(const std::string filename
+                    , const std::size_t max_chunk_size) {
+      // compute circular means by averaging sines and cosines
+      // and resolving the mean angle with the atan2 function.
+      std::vector<double> means;
+      std::size_t nc;
+      std::size_t n_rows_total = 0;
+      {
+        DataFileReader<double> input_file(filename, max_chunk_size);
+        Matrix<double> m = std::move(input_file.next_block());
+        FastPCA::deg2rad(m);
+        std::size_t nr = m.n_rows();
+        nc = m.n_cols();
+        std::vector<double> means_sin(nc, 0.0);
+        std::vector<double> means_cos(nc, 0.0);
+        std::size_t i, j;
+        while (nr > 0) {
+          #pragma omp parallel for default(none)\
+                                   firstprivate(nc,nr)\
+                                   private(i,j)\
+                                   shared(m,means_sin,means_cos)
+          for (j=0; j < nc; ++j) {
+            for (i=0; i < nr; ++i) {
+              means_sin[j] += sin(m(i,j));
+              means_cos[j] += cos(m(i,j));
+            }
+          }
+          n_rows_total += nr;
+          m = std::move(input_file.next_block());
+          FastPCA::deg2rad(m);
+          nr = m.n_rows();
+        }
+        means.resize(nc, 0.0);
+        for (j=0; j < nc; ++j) {
+          means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
+        }
+      }
+      // compute covariance matrix using the precomputed means.
+      // for every expression (x_n - mean_n), check periodic boundaries
+      // before computing the product (x_i - mean_i)(x_j - mean_j).
+      SymmetricMatrix<double> cov(nc);
+      {
+        DataFileReader<double> input_file(filename, max_chunk_size);
+        Matrix<double> m = std::move(input_file.next_block());
+        FastPCA::deg2rad(m);
+        std::size_t nr = m.n_rows();
+        std::size_t i, j, n;
+        while (nr > 0) {
+          #pragma omp parallel for default(none)\
+                                   private(i,j,n)\
+                                   firstprivate(nc,nr,means,n_rows_total)\
+                                   shared(m,cov)
+          for (j=0; j < nc; ++j) {
+            for (i=0; i <= j; ++i) {
+              for (n=0; n < nr; ++n) {
+                cov(j,i) += angular_distance(m(n,j), means[j]) * angular_distance(m(n,i), means[i]) / n_rows_total;
+              }
+            }
+          }
+          m = std::move(input_file.next_block());
+          FastPCA::deg2rad(m);
+          nr = m.n_rows();
+        }
+      }
+      return cov;
+    }
+  } // end namespace FastPCA::Periodic
+
+
+  SymmetricMatrix<double>
+  covariance_matrix(const std::string filename
+                  , const std::size_t max_chunk_size) {
+    // take only half size because of intermediate results.
+    std::size_t chunk_size = max_chunk_size / 2;
+    // data files are often to big to read into RAM completely.
+    // thus, we read the data blockwise, calculate the temporary
+    // covariance data and accumulate the results.
+    DataFileReader<double> input_file(filename, chunk_size);
+    std::size_t n_available_cols = input_file.n_cols();
+    CovAccumulation acc(0, n_available_cols);
+    Matrix<double> m = std::move(input_file.next_block());
+    while (m.n_rows() > 0) {
+      acc = join_accumulations(acc, accumulate_covariance(m));
+      m = std::move(input_file.next_block());
+    }
+    // last, we calculate the total covariance from the
+    // accumulated data.
+    return get_covariance(acc);
   }
-  return sm;
-}
-
-} // end local namespace
-
-
-SymmetricMatrix<double> covariance_matrix(const std::string filename,
-                                          const std::size_t max_chunk_size) {
-  SymmetricMatrix<double> result;
-  // take only half size because of intermediate results.
-  std::size_t chunk_size = max_chunk_size / 2;
-  // data files are often to big to read into RAM completely.
-  // thus, we read the data blockwise, calculate the temporary
-  // covariance data and accumulate the results.
-  DataFileReader<double> input_file(filename, chunk_size);
-  std::size_t n_available_cols = input_file.n_cols();
-  CovAccumulation acc(0, n_available_cols);
-  Matrix<double> m = std::move(input_file.next_block());
-  while (m.n_rows() > 0) {
-    acc = join_accumulations(acc, accumulate_covariance(m));
-    m = std::move(input_file.next_block());
-  }
-  // last, we calculate the total covariance from the
-  // accumulated data.
-  return get_covariance(acc);
-}
-
-SymmetricMatrix<double> covariance_matrix(const Matrix<double>& m) {
-  CovAccumulation acc = accumulate_covariance(m);
-  return get_covariance(acc);
-}
-
-} // end namespace FastCA
+} // end namespace FastPCA
 

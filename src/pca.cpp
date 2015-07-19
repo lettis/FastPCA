@@ -25,10 +25,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#include "covariance.h"
-#include "file_io.h"
-#include "matrix.h"
-#include "util.h"
+#include "covariance.hpp"
+#include "file_io.hpp"
+#include "matrix.hpp"
+#include "util.hpp"
 
 #include <string>
 #include <omp.h>
@@ -38,6 +38,7 @@ namespace b_po = boost::program_options;
 
 int main(int argc, char* argv[]) {
   bool verbose = false;
+  bool periodic = false;
 
   b_po::options_description desc (std::string(argv[0]).append(
     "\n\n"
@@ -59,17 +60,29 @@ int main(int argc, char* argv[]) {
   desc.add_options()
     ("help,h", "show this help")
     // input
-    ("file,f", b_po::value<std::string>(), "input (required): either whitespace-separated ASCII or GROMACS xtc-file.")
-    ("cov-in,C", b_po::value<std::string>()->default_value(""), "input (optional): file with already calculated covariance matrix")
+    ("file,f", b_po::value<std::string>(),
+        "input (required): either whitespace-separated ASCII or GROMACS xtc-file.")
+    ("cov-in,C", b_po::value<std::string>()->default_value(""),
+        "input (optional): file with already calculated covariance matrix")
     // output
-    ("proj,p", b_po::value<std::string>()->default_value(""), "output (optional): file for projected data")
-    ("vec,v", b_po::value<std::string>()->default_value(""), "output (optional): file for eigenvectors")
-    ("val,V", b_po::value<std::string>()->default_value(""), "output (optional): file for eigenvalues")
-    ("cov,c", b_po::value<std::string>()->default_value(""), "output (optional): file for covariance matrix")
+    ("proj,p", b_po::value<std::string>()->default_value(""),
+        "output (optional): file for projected data")
+    ("vec,v", b_po::value<std::string>()->default_value(""),
+        "output (optional): file for eigenvectors")
+    ("val,V", b_po::value<std::string>()->default_value(""),
+        "output (optional): file for eigenvalues")
+    ("cov,c", b_po::value<std::string>()->default_value(""),
+        "output (optional): file for covariance matrix")
     // parameters
-    ("buf,b", b_po::value<std::size_t>()->default_value(2), "max. allocatable RAM [Gb] (default: 2)")
-    ("verbose", b_po::value(&verbose)->zero_tokens(), "verbose mode (default: not set)")
-    ("nthreads,n", b_po::value<std::size_t>()->default_value(0), "number of OpenMP threads to use. if set to zero, will use value of OMP_NUM_THREADS (default: 0)");
+    ("buf,b", b_po::value<std::size_t>()->default_value(2),
+        "max. allocatable RAM [Gb] (default: 2)")
+    ("periodic,P", b_po::value(&periodic)->zero_tokens(),
+        "compute covariance and PCA on a torus (i.e. for periodic data like dihedral angles)")
+    ("verbose", b_po::value(&verbose)->zero_tokens(),
+        "verbose mode (default: not set)")
+    ("nthreads,n", b_po::value<std::size_t>()->default_value(0),
+        "number of OpenMP threads to use. if set to zero, will use value of OMP_NUM_THREADS (default: 0)");
+
 
   b_po::variables_map args;
   try {
@@ -106,37 +119,47 @@ int main(int argc, char* argv[]) {
       }
 
       std::string file_input = args["file"].as<std::string>();
-      std::size_t mem_buf_size = FastCA::gigabytes_to_bytes(args["buf"].as<std::size_t>());
-      FastCA::SymmetricMatrix<double> s;
+      std::size_t mem_buf_size = FastPCA::gigabytes_to_bytes(args["buf"].as<std::size_t>());
+      FastPCA::SymmetricMatrix<double> s;
       if (input_covmat_file_given) {
         verbose && std::cout << "loading covariance matrix from file" << std::endl;
-        FastCA::DataFileReader<double> cov_in(args["cov-in"].as<std::string>());
-        s = FastCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
+        FastPCA::DataFileReader<double> cov_in(args["cov-in"].as<std::string>());
+        s = FastPCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
       } else {
-        verbose && std::cout << "constructing covariance matrix" << std::endl;
-        s = FastCA::covariance_matrix(file_input, mem_buf_size);
+        if (periodic) {
+          verbose && std::cout << "constructing covariance matrix for periodic data" << std::endl;
+          s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size);
+        } else {
+          verbose && std::cout << "constructing covariance matrix" << std::endl;
+          s = FastPCA::covariance_matrix(file_input, mem_buf_size);
+        }
       }
 
       if (covmat_file_given) {
         verbose && std::cout << "writing covariance matrix" << std::endl;
         std::string covmat_file = args["cov"].as<std::string>();
-        FastCA::DataFileWriter<double>(covmat_file).write(FastCA::Matrix<double>(s));
+        FastPCA::DataFileWriter<double>(covmat_file).write(FastPCA::Matrix<double>(s));
       }
       if (eigenval_file_given) {
         verbose && std::cout << "solving eigensystem/writing eigenvalues matrix" << std::endl;
         std::string eigenval_file = args["val"].as<std::string>();
-        FastCA::DataFileWriter<double>(eigenval_file).write(s.eigenvalues());
+        FastPCA::DataFileWriter<double>(eigenval_file).write(s.eigenvalues());
       }
       if (eigenvec_file_given) {
         verbose && std::cout << "solving eigensystem/writing eigenvectors matrix" << std::endl;
         std::string eigenvec_file = args["vec"].as<std::string>();
-        FastCA::DataFileWriter<double>(eigenvec_file).write(s.eigenvectors());
+        FastPCA::DataFileWriter<double>(eigenvec_file).write(s.eigenvectors());
       }
       if (projection_file_given) {
-        verbose && std::cout << "computing projections" << std::endl;
         std::string projection_file = args["proj"].as<std::string>();
-        FastCA::Matrix<double> vecs = s.eigenvectors();
-        FastCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
+        FastPCA::Matrix<double> vecs = s.eigenvectors();
+        if (periodic) {
+          verbose && std::cout << "computing projections for periodic data" << std::endl;
+          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
+        } else {
+          verbose && std::cout << "computing projections" << std::endl;
+          FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
+        }
       }
 
     } else {

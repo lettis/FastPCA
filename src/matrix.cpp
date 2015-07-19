@@ -25,9 +25,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#include "matrix.h"
+#include "matrix.hpp"
 
-namespace FastCA {
+namespace FastPCA {
 
 namespace {
 
@@ -71,5 +71,5 @@ void SymmetricMatrix<double>::_solve_eigensystem() {
   this->_eigenvectors = _extractEigenvectors<double>(dat);
 }
 
-} // end namespace FastCA
+} // end namespace FastPCA
 

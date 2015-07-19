@@ -25,9 +25,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#include "errors.h"
+#include "errors.hpp"
 
-namespace FastCA {
+namespace FastPCA {
 
 const char* FileFormatError::what() const noexcept {
   return "unsupported file format";
@@ -43,5 +43,5 @@ const char* MatrixNotAlignedError::what() const noexcept {
   return "matrices are not aligned";
 }
 
-} // end namespace FastCA
+} // end namespace FastPCA
 

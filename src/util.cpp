@@ -25,11 +25,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-#include "util.h"
+#include "util.hpp"
 
 #include <string>
 
-namespace FastCA {
+namespace FastPCA {
 
 bool is_comment_or_empty(std::string line) {
   std::size_t pos = line.find_first_not_of(" ");
@@ -44,5 +44,5 @@ bool is_comment_or_empty(std::string line) {
   }
 }
 
-} // end namespace FastCA
+} // end namespace FastPCA
 

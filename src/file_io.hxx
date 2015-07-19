@@ -24,12 +24,12 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "file_io.h"
+#include "file_io.hpp"
 
 #include <limits>
 
 
-namespace FastCA {
+namespace FastPCA {
 namespace { // begin local namespace
 namespace UseCSV {
   template <class T>
@@ -41,13 +41,7 @@ namespace UseCSV {
   }
   
   template <class T>
-  void write_vector(std::string file_out, std::vector<T> v, bool append) {
-    std::ofstream fh;
-    if (append) {
-      fh.open(file_out, std::ios::out | std::ios::app);
-    } else {
-      fh.open(file_out, std::ios::out);
-    }
+  void write_vector(std::ofstream& fh, std::vector<T> v, bool in_line) {
     if (fh.good()) {
       //int n_digits = std::numeric_limits<T>::digits10;
       int n_digits = 6;
@@ -55,12 +49,31 @@ namespace UseCSV {
       fh.setf(std::ios::scientific);
       for (auto it=v.begin(); it != v.end(); ++it) {
         fh.width(n_digits+10); // 8 extra chars for spacing, +/- and scientific formatting
+        if (in_line) {
+          fh << " ";
+        }
         fh << (double) *it;
+        if ( ! in_line) {
+          fh << std::endl;
+        }
+      }
+      if (in_line) {
         fh << std::endl;
       }
     } else {
       throw FileNotFoundError();
     }
+  }
+
+  template <class T>
+  void write_vector(std::string file_out, std::vector<T> v, bool append) {
+    std::ofstream fh;
+    if (append) {
+      fh.open(file_out, std::ios::out | std::ios::app);
+    } else {
+      fh.open(file_out, std::ios::out);
+    }
+    write_vector(fh, v);
   }
 
   template <class T>
@@ -309,5 +322,5 @@ void DataFileWriter<T>::write(Matrix<T> m, bool append) {
   }
 }
 
-} // end namespace FastCA
+} // end namespace FastPCA
 
