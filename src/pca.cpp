@@ -130,21 +130,24 @@ int main(int argc, char* argv[]) {
         s = FastPCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
       } else {
         if (input_eigenvec_file_given) {
+          verbose && std::cout << "loading eigenvectors from file" << std::endl;
           std::ifstream ifs(args["vec-in"].as<std::string>());
           int i=0;
           int n_cols = -1;
           while(ifs.good()) {
             std::string buf;
             std::getline(ifs, buf);
-            std::vector<double> v = FastPCA::parse_line<double>(buf);
-            if (n_cols < 0) {
-              n_cols = v.size();
-              vecs = FastPCA::Matrix<double>(n_cols, n_cols);
+            if (! ifs.eof()) {
+              std::vector<double> v = FastPCA::parse_line<double>(buf);
+              if (n_cols < 0) {
+                n_cols = v.size();
+                vecs = FastPCA::Matrix<double>(n_cols, n_cols);
+              }
+              for (int j=0; j < n_cols; ++j) {
+                vecs(i,j) = v[j];
+              }
+              ++i;
             }
-            for (int j=0; j < n_cols; ++j) {
-              vecs(i,j) = v[j];
-            }
-            ++i;
           }
         } else {
           if (periodic) {
@@ -173,7 +176,9 @@ int main(int argc, char* argv[]) {
       }
       if (projection_file_given) {
         std::string projection_file = args["proj"].as<std::string>();
-        vecs = s.eigenvectors();
+        if (! input_eigenvec_file_given) {
+          vecs = s.eigenvectors();
+        }
         if (periodic) {
           verbose && std::cout << "computing projections for periodic data" << std::endl;
           FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
