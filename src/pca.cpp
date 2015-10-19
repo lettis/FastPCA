@@ -64,6 +64,8 @@ int main(int argc, char* argv[]) {
         "input (required): either whitespace-separated ASCII or GROMACS xtc-file.")
     ("cov-in,C", b_po::value<std::string>()->default_value(""),
         "input (optional): file with already calculated covariance matrix")
+    ("vec-in", b_po::value<std::string>()->default_value(""),
+        "input (optional): file with already computed eigenvecctors")
     // output
     ("proj,p", b_po::value<std::string>()->default_value(""),
         "output (optional): file for projected data")
@@ -105,6 +107,7 @@ int main(int argc, char* argv[]) {
     bool eigenval_file_given = (args["val"].as<std::string>().compare("") != 0);
     bool covmat_file_given = (args["cov"].as<std::string>().compare("") != 0);
     bool input_covmat_file_given = (args["cov-in"].as<std::string>().compare("") != 0);
+    bool input_eigenvec_file_given = (args["vec-in"].as<std::string>().compare("") != 0);
 
     if ( projection_file_given
       || eigenval_file_given
@@ -117,42 +120,60 @@ int main(int argc, char* argv[]) {
         // environment variable OMP_NUM_THREADS
         omp_set_num_threads(nthreads);
       }
-
       std::string file_input = args["file"].as<std::string>();
       std::size_t mem_buf_size = FastPCA::gigabytes_to_bytes(args["buf"].as<std::size_t>());
       FastPCA::SymmetricMatrix<double> s;
+      FastPCA::Matrix<double> vecs;
       if (input_covmat_file_given) {
         verbose && std::cout << "loading covariance matrix from file" << std::endl;
         FastPCA::DataFileReader<double> cov_in(args["cov-in"].as<std::string>());
         s = FastPCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
       } else {
-        if (periodic) {
-          verbose && std::cout << "constructing covariance matrix for periodic data" << std::endl;
-          s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size);
+        if (input_eigenvec_file_given) {
+          std::ifstream ifs(args["vec-in"].as<std::string>());
+          int i=0;
+          int n_cols = -1;
+          while(ifs.good()) {
+            std::string buf;
+            std::getline(ifs, buf);
+            std::vector<double> v = FastPCA::parse_line<double>(buf);
+            if (n_cols < 0) {
+              n_cols = v.size();
+              vecs = FastPCA::Matrix<double>(n_cols, n_cols);
+            }
+            for (int j=0; j < n_cols; ++j) {
+              vecs(i,j) = v[j];
+            }
+            ++i;
+          }
         } else {
-          verbose && std::cout << "constructing covariance matrix" << std::endl;
-          s = FastPCA::covariance_matrix(file_input, mem_buf_size);
+          if (periodic) {
+            verbose && std::cout << "constructing covariance matrix for periodic data" << std::endl;
+            s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size);
+          } else {          
+            verbose && std::cout << "constructing covariance matrix" << std::endl;
+            s = FastPCA::covariance_matrix(file_input, mem_buf_size);
+          }
+          if (covmat_file_given) {
+            verbose && std::cout << "writing covariance matrix" << std::endl;
+            std::string covmat_file = args["cov"].as<std::string>();
+            FastPCA::DataFileWriter<double>(covmat_file).write(FastPCA::Matrix<double>(s));
+          }
+          if (eigenval_file_given) {
+            verbose && std::cout << "solving eigensystem/writing eigenvalues matrix" << std::endl;
+            std::string eigenval_file = args["val"].as<std::string>();
+            FastPCA::DataFileWriter<double>(eigenval_file).write(s.eigenvalues());
+          }
+          if (eigenvec_file_given) {
+            verbose && std::cout << "solving eigensystem/writing eigenvectors matrix" << std::endl;
+            std::string eigenvec_file = args["vec"].as<std::string>();
+            FastPCA::DataFileWriter<double>(eigenvec_file).write(s.eigenvectors());
+          }
         }
-      }
-
-      if (covmat_file_given) {
-        verbose && std::cout << "writing covariance matrix" << std::endl;
-        std::string covmat_file = args["cov"].as<std::string>();
-        FastPCA::DataFileWriter<double>(covmat_file).write(FastPCA::Matrix<double>(s));
-      }
-      if (eigenval_file_given) {
-        verbose && std::cout << "solving eigensystem/writing eigenvalues matrix" << std::endl;
-        std::string eigenval_file = args["val"].as<std::string>();
-        FastPCA::DataFileWriter<double>(eigenval_file).write(s.eigenvalues());
-      }
-      if (eigenvec_file_given) {
-        verbose && std::cout << "solving eigensystem/writing eigenvectors matrix" << std::endl;
-        std::string eigenvec_file = args["vec"].as<std::string>();
-        FastPCA::DataFileWriter<double>(eigenvec_file).write(s.eigenvectors());
       }
       if (projection_file_given) {
         std::string projection_file = args["proj"].as<std::string>();
-        FastPCA::Matrix<double> vecs = s.eigenvectors();
+        vecs = s.eigenvectors();
         if (periodic) {
           verbose && std::cout << "computing projections for periodic data" << std::endl;
           FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
