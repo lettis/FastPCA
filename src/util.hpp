@@ -47,6 +47,12 @@ namespace FastPCA {
   void
   deg2rad(Matrix<T>& m);
 
+  template <class T>
+  void
+  rad2deg(Matrix<T>& m);
+
+  double
+  angular_distance(double theta1, double theta2);
 } // end namespace FastPCA
 
 

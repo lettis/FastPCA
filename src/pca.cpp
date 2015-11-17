@@ -75,6 +75,8 @@ int main(int argc, char* argv[]) {
         "output (optional): file for eigenvalues")
     ("cov,c", b_po::value<std::string>()->default_value(""),
         "output (optional): file for covariance matrix")
+    ("whitened,w", b_po::value<std::string>()->default_value(""),
+        "output (optional): file for whitened data (i.e. input data normalized by standard deviations")
     // parameters
     ("buf,b", b_po::value<std::size_t>()->default_value(2),
         "max. allocatable RAM [Gb] (default: 2)")
@@ -106,13 +108,15 @@ int main(int argc, char* argv[]) {
     bool eigenvec_file_given = (args["vec"].as<std::string>().compare("") != 0);
     bool eigenval_file_given = (args["val"].as<std::string>().compare("") != 0);
     bool covmat_file_given = (args["cov"].as<std::string>().compare("") != 0);
+    bool whitened_file_given = (args["whitened"].as<std::string>().compare("") != 0);
     bool input_covmat_file_given = (args["cov-in"].as<std::string>().compare("") != 0);
     bool input_eigenvec_file_given = (args["vec-in"].as<std::string>().compare("") != 0);
 
     if ( projection_file_given
       || eigenval_file_given
       || eigenvec_file_given
-      || covmat_file_given) {
+      || covmat_file_given
+      || whitened_file_given) {
 
       std::size_t nthreads = args["nthreads"].as<std::size_t>();
       if (nthreads > 0) {
@@ -130,6 +134,13 @@ int main(int argc, char* argv[]) {
         s = FastPCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
       } else {
         if (input_eigenvec_file_given) {
+          if (whitened_file_given) {
+            std::cerr << "loading eigenvectors from file and "
+                      << "whitening data is currently mutually exclusive "
+                         "in this implementation. "
+                      << "please do this in two separate steps" << std::endl;
+            return EXIT_FAILURE;
+          }
           verbose && std::cout << "loading eigenvectors from file" << std::endl;
           std::ifstream ifs(args["vec-in"].as<std::string>());
           int i=0;
@@ -153,7 +164,7 @@ int main(int argc, char* argv[]) {
           if (periodic) {
             verbose && std::cout << "constructing covariance matrix for periodic data" << std::endl;
             s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size);
-          } else {          
+          } else {
             verbose && std::cout << "constructing covariance matrix" << std::endl;
             s = FastPCA::covariance_matrix(file_input, mem_buf_size);
           }
@@ -187,17 +198,25 @@ int main(int argc, char* argv[]) {
           FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
         }
       }
-
+      if (whitened_file_given) {
+        whitened_file = args["whitened"].as<std::string>();
+        if (periodic) {
+          verbose && std::cout << "whitening periodic data" << std::endl;
+          FastPCA::Periodic::whiten_data(file_input, whitened_file, s, mem_buf_size);
+        } else {
+          verbose && std::cout << "whitening data" << std::endl;
+          FastPCA::whiten_data(file_input, whitened_file, s, mem_buf_size);
+        }
+      }
     } else {
       std::cout << "please specify at least one output file!" << std::endl;
       std::cout << desc << std::endl;
-      return 1;
+      return EXIT_FAILURE;
     }
   } else {
     std::cout << desc << std::endl;
-    return 1;
+    return EXIT_FAILURE;
   }
-
-  return 0;
+  return EXIT_SUCCESS;
 }
 

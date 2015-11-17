@@ -44,5 +44,15 @@ bool is_comment_or_empty(std::string line) {
   }
 }
 
+double
+angular_distance(double theta1, double theta2) {
+  double abs_diff = std::abs(theta1 - theta2);
+  if (abs_diff <= M_PI) {
+    return abs_diff;
+  } else {
+    return abs_diff - (2*M_PI);
+  }
+}
+
 } // end namespace FastPCA
 

@@ -34,86 +34,139 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
 
-  namespace Periodic {
-    namespace {
-      void
-      shift_matrix(Matrix<double>& m
-                 , std::vector<double> shifts) {
-        std::size_t n;
-        std::size_t j;
-        std::size_t nr = m.n_rows();
-        std::size_t nc = m.n_cols();
-        #pragma omp parallel for default(none) private(j,n) firstprivate(nc,nr,shifts) shared(m)
-        for (n=0; n < nr; ++n) {
-          for (j=0; j < nc; ++j) {
-            m(n, j) += shifts[j];
-          }
-        }
+  namespace {
+    void
+    _whiten_data(const std::string file_in,
+                 const std::string file_out,
+                 SymmetricMatrix<double> cov,
+                 std::size_t mem_buf_size,
+                 bool periodic) {
+      std::size_t i,j,nr;
+      std::size_t n_rows;
+      std::size_t n_cols;
+      std::vector<double> means;
+      if (periodic) {
+        std::tie<n_rows, n_cols, means> FastPCA::Periodic::means(file_in, mem_buf_size);
+      } else {
+        std::tie<n_rows, n_cols, means> FastPCA::means(file_in, mem_buf_size);
       }
-
-      void
-      calculate_projections_shifted(const std::string file_in,
-                                    AsciiLineWriter& fh_file_out,
-                                    Matrix<double> eigenvecs,
-                                    std::size_t mem_buf_size,
-                                    std::vector<double> shifts,
-                                    std::set<std::size_t>& seen_before) {
-        mem_buf_size /= 4;
-        auto is_in_unit_range = [](double theta) -> bool {return ((-PI < theta) && (theta <= PI));};
-        DataFileReader<double> fh_file_in(file_in, mem_buf_size);
+      std::vector<double> sigma(n_cols);
+      for (std::size_t j=0; j < n_cols; ++j) {
+        sigma[j] = std::sqrt(cov(j,j));
+      }
+      DataFileReader<double> fh_file_in(file_in, mem_buf_size);
+      AsciiLineWriter fh_file_out(file_out);
+      while ( ! fh_file_in.eof()) {
         Matrix<double> m = std::move(fh_file_in.next_block());
-        FastPCA::deg2rad(m);
-        shift_matrix(m, shifts);
-        Matrix<double> proj;
-        while (m.n_rows() > 0) {
-          // compute projection
-          proj = m * eigenvecs;
-          for (std::size_t n=0; n < proj.n_rows(); ++n) {
-            if (seen_before.count(n) == 0) {
-              bool in_unit_range = true;
-              for (std::size_t j=0; j < proj.n_cols(); ++j) {
-                if ( ! is_in_unit_range(proj(n, j))) {
-                  in_unit_range = false;
-                  break;
+        if (periodic) {
+          m = FastPCA::deg2rad(m);
+        }
+        nr = m.n_rows();
+        if (nr > 0) {
+          // convert block: shifted by mean, divided by sigma
+          #pragma omp parallel for default(none)\
+                                   private(i,j)\
+                                   firstprivate(nr,n_cols,periodic)\
+                                   shared(m,means,sigma)\
+                                   collapse(2)
+          for (i=0; i < nr; ++i) {
+            for (j=0; j < n_cols; ++j) {
+              m(i,j) = m(i,j) - means[j];
+              if (periodic) {
+                // periodic boundary checks
+                if (m(i,j) < -PI) {
+                  m(i,j) = m(i,j) + 2*PI;
+                } else if (m(i,j) > PI) {
+                  m(i,j) = m(i,j) - 2*PI;
                 }
               }
-              if (in_unit_range) {
-                std::vector<double> buf_out(proj.n_cols());
-                for (std::size_t j=0; j < proj.n_cols(); ++j) {
-                  buf_out[j] = proj(n, j);
-                }
-                fh_file_out.write(buf_out);
-                seen_before.insert(n);
-              }
+              m(i,j) = m(i,j) / sigma[j];
             }
           }
-          m = std::move(fh_file_in.next_block());
-          FastPCA::deg2rad(m);
-          shift_matrix(m, shifts);
+          if (periodic) {
+            m = FastPCA::rad2deg(m);
+          }
+          if (first_write) {
+            // write projected data directly to file
+            fh_file_out.write(m);
+            first_write = false;
+          } else {
+            // append next project block to file
+            fh_file_out.write(m, true);
+          }
         }
       }
-    } // end local namespace
+    }
+  } // end local namespace
+
+  namespace Periodic {
+//    namespace {
+//      void
+//      shift_matrix(Matrix<double>& m
+//                 , std::vector<double> shifts) {
+//        std::size_t n;
+//        std::size_t j;
+//        std::size_t nr = m.n_rows();
+//        std::size_t nc = m.n_cols();
+//        #pragma omp parallel for default(none) private(j,n) firstprivate(nc,nr,shifts) shared(m)
+//        for (n=0; n < nr; ++n) {
+//          for (j=0; j < nc; ++j) {
+//            m(n, j) += shifts[j];
+//          }
+//        }
+//      }
+//    } // end local namespace
 
     void
     calculate_projections(const std::string file_in,
-                          const std::string file_out,
+                          AsciiLineWriter& fh_file_out,
                           Matrix<double> eigenvecs,
                           std::size_t mem_buf_size) {
-      std::size_t nc = eigenvecs.n_cols();
-      AsciiLineWriter fh_file_out(file_out);
-      std::set<std::size_t> seen_before;
-      for (std::size_t j=0; j < nc; ++j) {
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, {    0,    0}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, {    0, 2*PI}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, {    0,-2*PI}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, { 2*PI,    0}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, { 2*PI, 2*PI}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, { 2*PI,-2*PI}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, {-2*PI,    0}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, {-2*PI, 2*PI}, seen_before);
-        calculate_projections_shifted(file_in, fh_file_out, eigenvecs, mem_buf_size, {-2*PI,-2*PI}, seen_before);
+    //TODO: correct this code
+      mem_buf_size /= 4;
+      auto is_in_unit_range = [](double theta) -> bool {return ((-PI < theta) && (theta <= PI));};
+      DataFileReader<double> fh_file_in(file_in, mem_buf_size);
+      Matrix<double> m = std::move(fh_file_in.next_block());
+      FastPCA::deg2rad(m);
+      shift_matrix(m, shifts);
+      Matrix<double> proj;
+      while (m.n_rows() > 0) {
+        // compute projection
+        proj = m * eigenvecs;
+        for (std::size_t n=0; n < proj.n_rows(); ++n) {
+          if (seen_before.count(n) == 0) {
+            bool in_unit_range = true;
+            for (std::size_t j=0; j < proj.n_cols(); ++j) {
+              if ( ! is_in_unit_range(proj(n, j))) {
+                in_unit_range = false;
+                break;
+              }
+            }
+            if (in_unit_range) {
+              std::vector<double> buf_out(proj.n_cols());
+              for (std::size_t j=0; j < proj.n_cols(); ++j) {
+                buf_out[j] = proj(n, j);
+              }
+              fh_file_out.write(buf_out);
+              seen_before.insert(n);
+            }
+          }
+        }
+        m = std::move(fh_file_in.next_block());
+        FastPCA::deg2rad(m);
+        shift_matrix(m, shifts);
       }
     }
+
+    void
+    whiten_data(const std::string file_in,
+                const std::string file_out,
+                SymmetricMatrix<double> cov,
+                std::size_t mem_buf_size,
+                ) {
+      _whiten_data(file_in, file_out, cov, mem_buf_size, true);
+    }
+
   }; // end namespace FastPCA::Periodic
 
   AsciiLineWriter::AsciiLineWriter(std::string filename)
@@ -174,5 +227,15 @@ namespace FastPCA {
       }
     }
   }
+
+  void
+  whiten_data(const std::string file_in,
+              const std::string file_out,
+              SymmetricMatrix<double> cov,
+              std::size_t mem_buf_size,
+              ) {
+    _whiten_data(file_in, file_out, cov, mem_buf_size, false);
+  }
+
 } // end namespace FastPCA
 

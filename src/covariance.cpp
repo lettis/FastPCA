@@ -124,65 +124,62 @@ namespace FastPCA {
       }
       return sm;
     }
-
-    double
-    angular_distance(double theta1, double theta2) {
-      double abs_diff = std::abs(theta1 - theta2);
-      if (abs_diff <= M_PI) {
-        return abs_diff;
-      } else {
-        return abs_diff - (2*M_PI);
-      }
-    }
   } // end local namespace
 
 
   namespace Periodic {
-    // because of the periodicity of the underlying data,
-    // we cannot use the summation trick we use above
-    // to accumulate the covariance in one pass.
-    // instead, we need to account for periodic boundary
-    // checks for every observation. therefore, we have to
-    // compute the means beforehand and compute the covariance
-    // in a second pass through the data.
+    // compute circular means by averaging sines and cosines
+    // and resolving the mean angle with the atan2 function.
+    // additionally, return number of observations.
+    std::tuple<std::size_t, std::size_t, std::vector<double>>
+    means(const std::string filename
+        , const std::size_t max_chunk_size) {
+      DataFileReader<double> input_file(filename, max_chunk_size);
+      Matrix<double> m = std::move(input_file.next_block());
+      FastPCA::deg2rad(m);
+      nc = m.n_cols();
+      std::vector<double> means_sin(nc, 0.0);
+      std::vector<double> means_cos(nc, 0.0);
+      std::size_t i, j;
+      std::size_t nr = m.n_rows();
+      std::size_t n_rows_total = 0;
+      while (nr > 0) {
+        #pragma omp parallel for default(none)\
+                                 firstprivate(nc,nr)\
+                                 private(i,j)\
+                                 shared(m,means_sin,means_cos)
+        for (j=0; j < nc; ++j) {
+          for (i=0; i < nr; ++i) {
+            means_sin[j] += sin(m(i,j));
+            means_cos[j] += cos(m(i,j));
+          }
+        }
+        n_rows_total += nr;
+        m = std::move(input_file.next_block());
+        FastPCA::deg2rad(m);
+        nr = m.n_rows();
+      }
+      means.resize(nc, 0.0);
+      for (j=0; j < nc; ++j) {
+        means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
+      }
+      return {n_rows_total, nc, means};
+    }
+    // compute covariance matrix for periodic data
     SymmetricMatrix<double>
     covariance_matrix(const std::string filename
                     , const std::size_t max_chunk_size) {
-      // compute circular means by averaging sines and cosines
-      // and resolving the mean angle with the atan2 function.
+      // because of the periodicity of the underlying data,
+      // we cannot use the summation trick we use above
+      // to accumulate the covariance in one pass.
+      // instead, we need to account for periodic boundary
+      // checks for every observation. therefore, we have to
+      // compute the means beforehand and compute the covariance
+      // in a second pass through the data.
+      std::size_t n_rows;
+      std::size_t n_cols;
       std::vector<double> means;
-      std::size_t nc;
-      std::size_t n_rows_total = 0;
-      {
-        DataFileReader<double> input_file(filename, max_chunk_size);
-        Matrix<double> m = std::move(input_file.next_block());
-        FastPCA::deg2rad(m);
-        std::size_t nr = m.n_rows();
-        nc = m.n_cols();
-        std::vector<double> means_sin(nc, 0.0);
-        std::vector<double> means_cos(nc, 0.0);
-        std::size_t i, j;
-        while (nr > 0) {
-          #pragma omp parallel for default(none)\
-                                   firstprivate(nc,nr)\
-                                   private(i,j)\
-                                   shared(m,means_sin,means_cos)
-          for (j=0; j < nc; ++j) {
-            for (i=0; i < nr; ++i) {
-              means_sin[j] += sin(m(i,j));
-              means_cos[j] += cos(m(i,j));
-            }
-          }
-          n_rows_total += nr;
-          m = std::move(input_file.next_block());
-          FastPCA::deg2rad(m);
-          nr = m.n_rows();
-        }
-        means.resize(nc, 0.0);
-        for (j=0; j < nc; ++j) {
-          means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
-        }
-      }
+      std::tie(n_rows, n_cols, means) = means(filename, max_chunk_size);
       // compute covariance matrix using the precomputed means.
       // for every expression (x_n - mean_n), check periodic boundaries
       // before computing the product (x_i - mean_i)(x_j - mean_j).
@@ -198,10 +195,10 @@ namespace FastPCA {
                                    private(i,j,n)\
                                    firstprivate(nc,nr,means,n_rows_total)\
                                    shared(m,cov)
-          for (j=0; j < nc; ++j) {
+          for (j=0; j < n_cols; ++j) {
             for (i=0; i <= j; ++i) {
               for (n=0; n < nr; ++n) {
-                cov(j,i) += angular_distance(m(n,j), means[j]) * angular_distance(m(n,i), means[i]) / n_rows_total;
+                cov(j,i) += FastPCA::angular_distance(m(n,j), means[j]) * FastPCA::angular_distance(m(n,i), means[i]) / (n_rows-1);
               }
             }
           }
@@ -214,6 +211,12 @@ namespace FastPCA {
     }
   } // end namespace FastPCA::Periodic
 
+
+  std::tuple<std::size_t, std::size_t, std::vector<double>>
+  means(const std::string filename
+      , const std::size_t max_chunk_size) {
+    //TODO
+  }
 
   SymmetricMatrix<double>
   covariance_matrix(const std::string filename

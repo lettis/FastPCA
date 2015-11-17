@@ -33,6 +33,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
 
+namespace {
+  void
+  _elementwise_mult(Matrix<T>& m, T factor) {
+    std::size_t nr = m.n_rows();
+    std::size_t nc = m.n_cols();
+    std::size_t i,j;
+    for (j=0; j < nc; ++j) {
+      for (i=0; i < nr; ++i) {
+        m(i,j) *= conv;
+      }
+    }
+  }
+} // end local namespace
+
+template <class T>
+void
+deg2rad(Matrix<T>& m) {
+  _elementwise_mult(m, M_PI / 180.0);
+}
+
+template <class T>
+void
+rad2deg(Matrix<T>& m) {
+  _elementwise_mult(m, 180.0 / M_PI);
+}
+
 template <class T>
 std::vector<T> parse_line(std::string line) {
   std::vector<T> out;
@@ -47,7 +73,8 @@ std::vector<T> parse_line(std::string line) {
         out.push_back(atof(last_start));
         whitespace_before = true;
       }
-    } else { // now we have some character which is no whitespace
+    } else {
+      // now we have some character which is no whitespace
       if (whitespace_before) {
         last_start = &line[j];
       }
@@ -57,20 +84,6 @@ std::vector<T> parse_line(std::string line) {
   }
   out.push_back(atof(last_start));
   return out;
-}
-
-template <class T>
-void
-deg2rad(Matrix<T>& m) {
-  std::size_t nr = m.n_rows();
-  std::size_t nc = m.n_cols();
-  std::size_t i,j;
-  T conv = M_PI / 180.0;
-  for (j=0; j < nc; ++j) {
-    for (i=0; i < nr; ++i) {
-      m(i,j) *= conv;
-    }
-  }
 }
 
 } // namespace FastPCA

@@ -51,11 +51,20 @@ namespace FastPCA {
   } // end local namespace
 
   namespace Periodic {
+    std::tuple<std::size_t, std::size_t, std::vector<double>>
+    means(const std::string filename
+        , const std::size_t max_chunk_size);
+
     SymmetricMatrix<double>
     covariance_matrix(const std::string filename
                     , const std::size_t max_chunk_size);
   }; // end namespace FastPCA::Periodic
   
+
+  std::tuple<std::size_t, std::size_t, std::vector<double>>
+  means(const std::string filename
+      , const std::size_t max_chunk_size);
+
   SymmetricMatrix<double>
   covariance_matrix(const std::string filename
                   , const std::size_t max_chunk_size);
