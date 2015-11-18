@@ -34,6 +34,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace FastPCA {
 
 namespace {
+  template <class T>
   void
   _elementwise_mult(Matrix<T>& m, T factor) {
     std::size_t nr = m.n_rows();
@@ -41,7 +42,7 @@ namespace {
     std::size_t i,j;
     for (j=0; j < nc; ++j) {
       for (i=0; i < nr; ++i) {
-        m(i,j) *= conv;
+        m(i,j) *= factor;
       }
     }
   }

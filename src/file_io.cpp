@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PI (3.14159265358979323846264338327950288)
 
 #include "file_io.hpp"
+#include "covariance.hpp"
 
 namespace FastPCA {
 
@@ -46,9 +47,9 @@ namespace FastPCA {
       std::size_t n_cols;
       std::vector<double> means;
       if (periodic) {
-        std::tie<n_rows, n_cols, means> FastPCA::Periodic::means(file_in, mem_buf_size);
+        std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
       } else {
-        std::tie<n_rows, n_cols, means> FastPCA::means(file_in, mem_buf_size);
+        std::tie(n_rows, n_cols, means) = FastPCA::means(file_in, mem_buf_size);
       }
       std::vector<double> sigma(n_cols);
       for (std::size_t j=0; j < n_cols; ++j) {
@@ -56,10 +57,11 @@ namespace FastPCA {
       }
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       AsciiLineWriter fh_file_out(file_out);
+      bool first_write = true;
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = std::move(fh_file_in.next_block());
         if (periodic) {
-          m = FastPCA::deg2rad(m);
+          FastPCA::deg2rad(m);
         }
         nr = m.n_rows();
         if (nr > 0) {
@@ -84,7 +86,7 @@ namespace FastPCA {
             }
           }
           if (periodic) {
-            m = FastPCA::rad2deg(m);
+            FastPCA::rad2deg(m);
           }
           if (first_write) {
             // write projected data directly to file
@@ -122,7 +124,6 @@ namespace FastPCA {
                           AsciiLineWriter& fh_file_out,
                           Matrix<double> eigenvecs,
                           std::size_t mem_buf_size) {
-    //TODO: correct this code
       mem_buf_size /= 4;
       auto is_in_unit_range = [](double theta) -> bool {return ((-PI < theta) && (theta <= PI));};
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
@@ -134,27 +135,14 @@ namespace FastPCA {
         // compute projection
         proj = m * eigenvecs;
         for (std::size_t n=0; n < proj.n_rows(); ++n) {
-          if (seen_before.count(n) == 0) {
-            bool in_unit_range = true;
-            for (std::size_t j=0; j < proj.n_cols(); ++j) {
-              if ( ! is_in_unit_range(proj(n, j))) {
-                in_unit_range = false;
-                break;
-              }
-            }
-            if (in_unit_range) {
-              std::vector<double> buf_out(proj.n_cols());
-              for (std::size_t j=0; j < proj.n_cols(); ++j) {
-                buf_out[j] = proj(n, j);
-              }
-              fh_file_out.write(buf_out);
-              seen_before.insert(n);
-            }
+          std::vector<double> buf_out(proj.n_cols());
+          for (std::size_t j=0; j < proj.n_cols(); ++j) {
+            buf_out[j] = proj(n, j);
           }
+          fh_file_out.write(buf_out);
         }
         m = std::move(fh_file_in.next_block());
         FastPCA::deg2rad(m);
-        shift_matrix(m, shifts);
       }
     }
 

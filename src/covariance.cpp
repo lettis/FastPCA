@@ -137,17 +137,14 @@ namespace FastPCA {
       DataFileReader<double> input_file(filename, max_chunk_size);
       Matrix<double> m = std::move(input_file.next_block());
       FastPCA::deg2rad(m);
-      nc = m.n_cols();
-      std::vector<double> means_sin(nc, 0.0);
-      std::vector<double> means_cos(nc, 0.0);
       std::size_t i, j;
       std::size_t nr = m.n_rows();
+      std::size_t nc = m.n_cols();
+      std::vector<double> means(nc, 0.0);
+      std::vector<double> means_sin(nc, 0.0);
+      std::vector<double> means_cos(nc, 0.0);
       std::size_t n_rows_total = 0;
       while (nr > 0) {
-        #pragma omp parallel for default(none)\
-                                 firstprivate(nc,nr)\
-                                 private(i,j)\
-                                 shared(m,means_sin,means_cos)
         for (j=0; j < nc; ++j) {
           for (i=0; i < nr; ++i) {
             means_sin[j] += sin(m(i,j));
@@ -159,11 +156,10 @@ namespace FastPCA {
         FastPCA::deg2rad(m);
         nr = m.n_rows();
       }
-      means.resize(nc, 0.0);
       for (j=0; j < nc; ++j) {
         means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
       }
-      return {n_rows_total, nc, means};
+      return std::make_tuple(n_rows_total, nc, means);
     }
     // compute covariance matrix for periodic data
     SymmetricMatrix<double>
@@ -183,7 +179,7 @@ namespace FastPCA {
       // compute covariance matrix using the precomputed means.
       // for every expression (x_n - mean_n), check periodic boundaries
       // before computing the product (x_i - mean_i)(x_j - mean_j).
-      SymmetricMatrix<double> cov(nc);
+      SymmetricMatrix<double> cov(n_cols);
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
         Matrix<double> m = std::move(input_file.next_block());
@@ -198,7 +194,9 @@ namespace FastPCA {
           for (j=0; j < n_cols; ++j) {
             for (i=0; i <= j; ++i) {
               for (n=0; n < nr; ++n) {
-                cov(j,i) += FastPCA::angular_distance(m(n,j), means[j]) * FastPCA::angular_distance(m(n,i), means[i]) / (n_rows-1);
+                cov(j,i) += FastPCA::angular_distance(m(n,j), means[j])
+                          * FastPCA::angular_distance(m(n,i), means[i])
+                          / (n_rows-1);
               }
             }
           }
@@ -215,7 +213,24 @@ namespace FastPCA {
   std::tuple<std::size_t, std::size_t, std::vector<double>>
   means(const std::string filename
       , const std::size_t max_chunk_size) {
-    //TODO
+    DataFileReader<double> input_file(filename, max_chunk_size);
+    std::size_t n_cols = input_file.n_cols();
+    std::size_t n_rows = 0;
+    std::vector<double> means(n_cols);
+    Matrix<double> m = std::move(input_file.next_block());
+    while (m.n_rows() > 0) {
+      n_rows += m.n_rows();
+      for (std::size_t i=0; i < m.n_rows(); ++i) {
+        for (std::size_t j=0; j < n_cols; ++j) {
+          means[j] += m(i,j);
+        }
+      }
+      m = std::move(input_file.next_block());
+    }
+    for (std::size_t j=0; j < n_cols; ++j) {
+      means[j] /= n_rows;
+    }
+    return {n_rows, n_cols, means};
   }
 
   SymmetricMatrix<double>
