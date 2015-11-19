@@ -199,7 +199,7 @@ int main(int argc, char* argv[]) {
         }
       }
       if (whitened_file_given) {
-        whitened_file = args["whitened"].as<std::string>();
+        std::string whitened_file = args["whitened"].as<std::string>();
         if (periodic) {
           verbose && std::cout << "whitening periodic data" << std::endl;
           FastPCA::Periodic::whiten_data(file_input, whitened_file, s, mem_buf_size);

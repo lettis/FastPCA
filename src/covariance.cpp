@@ -136,7 +136,6 @@ namespace FastPCA {
         , const std::size_t max_chunk_size) {
       DataFileReader<double> input_file(filename, max_chunk_size);
       Matrix<double> m = std::move(input_file.next_block());
-      FastPCA::deg2rad(m);
       std::size_t i, j;
       std::size_t nr = m.n_rows();
       std::size_t nc = m.n_cols();
@@ -153,7 +152,6 @@ namespace FastPCA {
         }
         n_rows_total += nr;
         m = std::move(input_file.next_block());
-        FastPCA::deg2rad(m);
         nr = m.n_rows();
       }
       for (j=0; j < nc; ++j) {
@@ -175,7 +173,7 @@ namespace FastPCA {
       std::size_t n_rows;
       std::size_t n_cols;
       std::vector<double> means;
-      std::tie(n_rows, n_cols, means) = means(filename, max_chunk_size);
+      std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(filename, max_chunk_size);
       // compute covariance matrix using the precomputed means.
       // for every expression (x_n - mean_n), check periodic boundaries
       // before computing the product (x_i - mean_i)(x_j - mean_j).
@@ -183,13 +181,12 @@ namespace FastPCA {
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
         Matrix<double> m = std::move(input_file.next_block());
-        FastPCA::deg2rad(m);
         std::size_t nr = m.n_rows();
         std::size_t i, j, n;
         while (nr > 0) {
           #pragma omp parallel for default(none)\
                                    private(i,j,n)\
-                                   firstprivate(nc,nr,means,n_rows_total)\
+                                   firstprivate(n_cols,nr,means,n_rows)\
                                    shared(m,cov)
           for (j=0; j < n_cols; ++j) {
             for (i=0; i <= j; ++i) {
@@ -201,7 +198,6 @@ namespace FastPCA {
             }
           }
           m = std::move(input_file.next_block());
-          FastPCA::deg2rad(m);
           nr = m.n_rows();
         }
       }
@@ -230,7 +226,7 @@ namespace FastPCA {
     for (std::size_t j=0; j < n_cols; ++j) {
       means[j] /= n_rows;
     }
-    return {n_rows, n_cols, means};
+    return std::make_tuple(n_rows, n_cols, means);
   }
 
   SymmetricMatrix<double>
