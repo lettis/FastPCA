@@ -39,21 +39,13 @@ namespace b_po = boost::program_options;
 int main(int argc, char* argv[]) {
   bool verbose = false;
   bool periodic = false;
+  bool use_correlation = false;
 
   b_po::options_description desc (std::string(argv[0]).append(
     "\n\n"
     "Calculate principle components from large data files.\n"
     "Input data should be given as textfiles\n"
     "with whitespace separated columns or, alternatively as GROMACS .xtc-files.\n"
-    "\n"
-    "You can control the number of threads by setting\n"
-    "the environment variable OMP_NUM_THREADS or the commandline option '-n' to the desired value.\n"
-    "\n"
-    "Experience has shown (but you may test this yourself)\n"
-    "that the optimal number of threads is equal to the number\n"
-    "of REAL cores in the system, i.e. there seems to be no gain\n"
-    "from hyperthreading.\n"
-    "\n"
     "\n"
     "options"));
 
@@ -75,8 +67,8 @@ int main(int argc, char* argv[]) {
         "output (optional): file for eigenvalues")
     ("cov,c", b_po::value<std::string>()->default_value(""),
         "output (optional): file for covariance matrix")
-    ("whitened,w", b_po::value<std::string>()->default_value(""),
-        "output (optional): file for whitened data (i.e. input data normalized by standard deviations")
+    ("norm,N", b_po::value(&use_correlation)->zero_tokens(),
+        "if set, use correlation instead of covariance by normalizing input (default: false)")
     // parameters
     ("buf,b", b_po::value<std::size_t>()->default_value(2),
         "max. allocatable RAM [Gb] (default: 2)")
@@ -108,15 +100,13 @@ int main(int argc, char* argv[]) {
     bool eigenvec_file_given = (args["vec"].as<std::string>().compare("") != 0);
     bool eigenval_file_given = (args["val"].as<std::string>().compare("") != 0);
     bool covmat_file_given = (args["cov"].as<std::string>().compare("") != 0);
-    bool whitened_file_given = (args["whitened"].as<std::string>().compare("") != 0);
     bool input_covmat_file_given = (args["cov-in"].as<std::string>().compare("") != 0);
     bool input_eigenvec_file_given = (args["vec-in"].as<std::string>().compare("") != 0);
 
     if ( projection_file_given
       || eigenval_file_given
       || eigenvec_file_given
-      || covmat_file_given
-      || whitened_file_given) {
+      || covmat_file_given) {
 
       std::size_t nthreads = args["nthreads"].as<std::size_t>();
       if (nthreads > 0) {
@@ -134,13 +124,6 @@ int main(int argc, char* argv[]) {
         s = FastPCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
       } else {
         if (input_eigenvec_file_given) {
-          if (whitened_file_given) {
-            std::cerr << "loading eigenvectors from file and "
-                      << "whitening data is currently mutually exclusive "
-                         "in this implementation. "
-                      << "please do this in two separate steps" << std::endl;
-            return EXIT_FAILURE;
-          }
           verbose && std::cout << "loading eigenvectors from file" << std::endl;
           std::ifstream ifs(args["vec-in"].as<std::string>());
           int i=0;
@@ -196,16 +179,6 @@ int main(int argc, char* argv[]) {
         } else {
           verbose && std::cout << "computing projections" << std::endl;
           FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
-        }
-      }
-      if (whitened_file_given) {
-        std::string whitened_file = args["whitened"].as<std::string>();
-        if (periodic) {
-          verbose && std::cout << "whitening periodic data" << std::endl;
-          FastPCA::Periodic::whiten_data(file_input, whitened_file, s, mem_buf_size);
-        } else {
-          verbose && std::cout << "whitening data" << std::endl;
-          FastPCA::whiten_data(file_input, whitened_file, s, mem_buf_size);
         }
       }
     } else {

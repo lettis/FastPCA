@@ -87,10 +87,11 @@ namespace FastPCA {
                                Matrix<double> eigenvecs,
                                std::size_t mem_buf_size);
 
-    void whiten_data(const std::string file_in,
-                     const std::string file_out,
-                     SymmetricMatrix<double> cov,
-                     std::size_t mem_buf_size);
+//TODO throw away
+//    void whiten_data(const std::string file_in,
+//                     const std::string file_out,
+//                     SymmetricMatrix<double> cov,
+//                     std::size_t mem_buf_size);
   }; // end namespace FastPCA::Periodic
 
 
@@ -149,11 +150,11 @@ namespace FastPCA {
                              const std::string file_out,
                              Matrix<double> eigenvecs,
                              std::size_t mem_buf_size);
-
-  void whiten_data(const std::string file_in,
-                   const std::string file_out,
-                   SymmetricMatrix<double> cov,
-                   std::size_t mem_buf_size);
+// TODO throw away
+//  void whiten_data(const std::string file_in,
+//                   const std::string file_out,
+//                   SymmetricMatrix<double> cov,
+//                   std::size_t mem_buf_size);
 } // end namespace FastPCA
 
 // load template implementations

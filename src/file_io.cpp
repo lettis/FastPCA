@@ -35,64 +35,65 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
 
-  namespace {
-    void
-    _whiten_data(const std::string file_in,
-                 const std::string file_out,
-                 SymmetricMatrix<double> cov,
-                 std::size_t mem_buf_size,
-                 bool periodic) {
-      std::size_t i,j,nr;
-      std::size_t n_rows;
-      std::size_t n_cols;
-      std::vector<double> means;
-      if (periodic) {
-        std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
-      } else {
-        std::tie(n_rows, n_cols, means) = FastPCA::means(file_in, mem_buf_size);
-      }
-      std::vector<double> sigma(n_cols);
-      for (std::size_t j=0; j < n_cols; ++j) {
-        sigma[j] = std::sqrt(cov(j,j));
-      }
-      DataFileReader<double> fh_file_in(file_in, mem_buf_size);
-      AsciiLineWriter fh_file_out(file_out);
-      bool first_write = true;
-      while ( ! fh_file_in.eof()) {
-        Matrix<double> m = std::move(fh_file_in.next_block());
-        nr = m.n_rows();
-        if (nr > 0) {
-          // convert block: shifted by mean, divided by sigma
-          #pragma omp parallel for default(none)\
-                                   private(i,j)\
-                                   firstprivate(nr,n_cols,periodic)\
-                                   shared(m,means,sigma)\
-                                   collapse(2)
-          for (i=0; i < nr; ++i) {
-            for (j=0; j < n_cols; ++j) {
-              m(i,j) = m(i,j) - means[j];
-              if (periodic) {
-                // periodic boundary checks
-                if (m(i,j) < -PI) {
-                  m(i,j) = m(i,j) + 2*PI;
-                } else if (m(i,j) > PI) {
-                  m(i,j) = m(i,j) - 2*PI;
-                }
-              }
-              m(i,j) = m(i,j) / sigma[j];
-            }
-          }
-          for (i=0; i < nr; ++i) {
-            std::vector<double> buf(n_cols);
-            for (j=0; j < n_cols; ++j) {
-              buf[j] = m(i,j);
-            }
-            fh_file_out.write(buf);
-          }
-        }
-      }
-    }
-  } // end local namespace
+// TODO: throw away
+//  namespace {
+//    void
+//    _whiten_data(const std::string file_in,
+//                 const std::string file_out,
+//                 SymmetricMatrix<double> cov,
+//                 std::size_t mem_buf_size,
+//                 bool periodic) {
+//      std::size_t i,j,nr;
+//      std::size_t n_rows;
+//      std::size_t n_cols;
+//      std::vector<double> means;
+//      if (periodic) {
+//        std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
+//      } else {
+//        std::tie(n_rows, n_cols, means) = FastPCA::means(file_in, mem_buf_size);
+//      }
+//      std::vector<double> sigma(n_cols);
+//      for (std::size_t j=0; j < n_cols; ++j) {
+//        sigma[j] = std::sqrt(cov(j,j));
+//      }
+//      DataFileReader<double> fh_file_in(file_in, mem_buf_size);
+//      AsciiLineWriter fh_file_out(file_out);
+//      bool first_write = true;
+//      while ( ! fh_file_in.eof()) {
+//        Matrix<double> m = std::move(fh_file_in.next_block());
+//        nr = m.n_rows();
+//        if (nr > 0) {
+//          // convert block: shifted by mean, divided by sigma
+//          #pragma omp parallel for default(none)\
+//                                   private(i,j)\
+//                                   firstprivate(nr,n_cols,periodic)\
+//                                   shared(m,means,sigma)\
+//                                   collapse(2)
+//          for (i=0; i < nr; ++i) {
+//            for (j=0; j < n_cols; ++j) {
+//              m(i,j) = m(i,j) - means[j];
+//              if (periodic) {
+//                // periodic boundary checks
+//                if (m(i,j) < -PI) {
+//                  m(i,j) = m(i,j) + 2*PI;
+//                } else if (m(i,j) > PI) {
+//                  m(i,j) = m(i,j) - 2*PI;
+//                }
+//              }
+//              m(i,j) = m(i,j) / sigma[j];
+//            }
+//          }
+//          for (i=0; i < nr; ++i) {
+//            std::vector<double> buf(n_cols);
+//            for (j=0; j < n_cols; ++j) {
+//              buf[j] = m(i,j);
+//            }
+//            fh_file_out.write(buf);
+//          }
+//        }
+//      }
+//    }
+//  } // end local namespace
 
   namespace Periodic {
     void
@@ -113,13 +114,14 @@ namespace FastPCA {
       }
     }
 
-    void
-    whiten_data(const std::string file_in,
-                const std::string file_out,
-                SymmetricMatrix<double> cov,
-                std::size_t mem_buf_size) {
-      _whiten_data(file_in, file_out, cov, mem_buf_size, true);
-    }
+//TODO throw away
+//    void
+//    whiten_data(const std::string file_in,
+//                const std::string file_out,
+//                SymmetricMatrix<double> cov,
+//                std::size_t mem_buf_size) {
+//      _whiten_data(file_in, file_out, cov, mem_buf_size, true);
+//    }
 
   }; // end namespace FastPCA::Periodic
 
@@ -182,13 +184,14 @@ namespace FastPCA {
     }
   }
 
-  void
-  whiten_data(const std::string file_in,
-              const std::string file_out,
-              SymmetricMatrix<double> cov,
-              std::size_t mem_buf_size) {
-    _whiten_data(file_in, file_out, cov, mem_buf_size, false);
-  }
+//TODO throw away
+//  void
+//  whiten_data(const std::string file_in,
+//              const std::string file_out,
+//              SymmetricMatrix<double> cov,
+//              std::size_t mem_buf_size) {
+//    _whiten_data(file_in, file_out, cov, mem_buf_size, false);
+//  }
 
 } // end namespace FastPCA
 
