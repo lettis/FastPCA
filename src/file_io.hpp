@@ -85,13 +85,8 @@ namespace FastPCA {
     void calculate_projections(const std::string file_in,
                                const std::string file_out,
                                Matrix<double> eigenvecs,
-                               std::size_t mem_buf_size);
-
-//TODO throw away
-//    void whiten_data(const std::string file_in,
-//                     const std::string file_out,
-//                     SymmetricMatrix<double> cov,
-//                     std::size_t mem_buf_size);
+                               std::size_t mem_buf_size,
+                               bool use_correlation);
   }; // end namespace FastPCA::Periodic
 
 
@@ -149,12 +144,8 @@ namespace FastPCA {
   void calculate_projections(const std::string file_in,
                              const std::string file_out,
                              Matrix<double> eigenvecs,
-                             std::size_t mem_buf_size);
-// TODO throw away
-//  void whiten_data(const std::string file_in,
-//                   const std::string file_out,
-//                   SymmetricMatrix<double> cov,
-//                   std::size_t mem_buf_size);
+                             std::size_t mem_buf_size,
+                             bool use_correlation);
 } // end namespace FastPCA
 
 // load template implementations

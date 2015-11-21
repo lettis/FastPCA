@@ -132,8 +132,9 @@ namespace FastPCA {
     // and resolving the mean angle with the atan2 function.
     // additionally, return number of observations.
     std::tuple<std::size_t, std::size_t, std::vector<double>>
-    means(const std::string filename
+    stats(const std::string filename
         , const std::size_t max_chunk_size) {
+    //TODO sigmas
       DataFileReader<double> input_file(filename, max_chunk_size);
       Matrix<double> m = std::move(input_file.next_block());
       std::size_t i, j;
@@ -207,8 +208,10 @@ namespace FastPCA {
 
 
   std::tuple<std::size_t, std::size_t, std::vector<double>>
-  means(const std::string filename
+  stats(const std::string filename
       , const std::size_t max_chunk_size) {
+    //TODO: sigmas
+
     DataFileReader<double> input_file(filename, max_chunk_size);
     std::size_t n_cols = input_file.n_cols();
     std::size_t n_rows = 0;

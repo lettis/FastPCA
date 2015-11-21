@@ -51,8 +51,15 @@ namespace FastPCA {
   } // end local namespace
 
   namespace Periodic {
+   /**
+    * simple stats for periodic observables:
+    *   1. number of observations in data set
+    *   2. number of observables
+    *   3. means of observables
+    *   4. sigmas (i.e. standard deviations) of observables
+    */
     std::tuple<std::size_t, std::size_t, std::vector<double>>
-    means(const std::string filename
+    stats(const std::string filename
         , const std::size_t max_chunk_size);
 
     SymmetricMatrix<double>
@@ -61,8 +68,15 @@ namespace FastPCA {
   }; // end namespace FastPCA::Periodic
   
 
-  std::tuple<std::size_t, std::size_t, std::vector<double>>
-  means(const std::string filename
+  /**
+   * simple stats for observables:
+   *   1. number of observations in data set
+   *   2. number of observables
+   *   3. means of observables
+   *   4. sigmas (i.e. standard deviations) of observables
+   */
+  std::tuple<std::size_t, std::size_t, std::vector<double>, std::vector<double>>
+  stats(const std::string filename
       , const std::size_t max_chunk_size);
 
   SymmetricMatrix<double>

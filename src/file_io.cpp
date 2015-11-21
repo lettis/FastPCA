@@ -100,7 +100,9 @@ namespace FastPCA {
     calculate_projections(const std::string file_in,
                           const std::string file_out,
                           Matrix<double> eigenvecs,
-                          std::size_t mem_buf_size) {
+                          std::size_t mem_buf_size,
+                          bool use_correlation) {
+      //TODO: adapt
       mem_buf_size /= 4;
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
@@ -162,7 +164,10 @@ namespace FastPCA {
   calculate_projections(const std::string file_in,
                         const std::string file_out,
                         Matrix<double> eigenvecs,
-                        std::size_t mem_buf_size) {
+                        std::size_t mem_buf_size,
+                        bool use_correlation) {
+    //TODO adapt
+    
     // calculating the projection, we need twice the space
     // (original data + result)
     mem_buf_size /= 4;

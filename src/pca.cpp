@@ -79,7 +79,6 @@ int main(int argc, char* argv[]) {
     ("nthreads,n", b_po::value<std::size_t>()->default_value(0),
         "number of OpenMP threads to use. if set to zero, will use value of OMP_NUM_THREADS (default: 0)");
 
-
   b_po::variables_map args;
   try {
     b_po::store(b_po::parse_command_line(argc, argv, desc), args);
@@ -145,14 +144,17 @@ int main(int argc, char* argv[]) {
           }
         } else {
           if (periodic) {
-            verbose && std::cout << "constructing covariance matrix for periodic data" << std::endl;
-            s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size);
+            verbose && ( ! use_correlation) && std::cout << "constructing covariance matrix for periodic data" << std::endl;
+            verbose &&     use_correlation  && std::cout << "constructing correlation matrix for periodic data" << std::endl;
+            s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size, use_correlation);
           } else {
-            verbose && std::cout << "constructing covariance matrix" << std::endl;
-            s = FastPCA::covariance_matrix(file_input, mem_buf_size);
+            verbose && ( ! use_correlation) && std::cout << "constructing covariance matrix" << std::endl;
+            verbose &&     use_correlation  && std::cout << "constructing correlation matrix" << std::endl;
+            s = FastPCA::covariance_matrix(file_input, mem_buf_size, use_correlation);
           }
           if (covmat_file_given) {
-            verbose && std::cout << "writing covariance matrix" << std::endl;
+            verbose && ( ! use_correlation) && std::cout << "writing covariance matrix" << std::endl;
+            verbose &&     use_correlation  && std::cout << "writing correlation matrix" << std::endl;
             std::string covmat_file = args["cov"].as<std::string>();
             FastPCA::DataFileWriter<double>(covmat_file).write(FastPCA::Matrix<double>(s));
           }
