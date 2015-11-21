@@ -32,7 +32,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
 
-  constexpr std::size_t gigabytes_to_bytes(std::size_t gb) {
+  constexpr std::size_t
+  gigabytes_to_bytes(std::size_t gb) {
     return gb * 1073741824;
   }
   
@@ -45,16 +46,59 @@ namespace FastPCA {
   
   template <class T>
   void
-  deg2rad(Matrix<T>& m);
+  deg2rad_inplace(Matrix<T>& m);
 
   template <class T>
   void
-  rad2deg(Matrix<T>& m);
+  rad2deg_inplace(Matrix<T>& m);
 
-  double
-  angular_distance(double theta1, double theta2);
+  template <class T>
+  void
+  shift_matrix_columns_inplace(Matrix<T>& m, std::vector<T> shifts);
+
+  /**
+   * simple stats for observables:
+   *   1. number of observations in data set
+   *   2. number of observables
+   *   3. means of observables
+   */
+  std::tuple<std::size_t, std::size_t, std::vector<double>, std::vector<double>>
+  means(const std::string filename
+      , const std::size_t max_chunk_size);
+
+  std::vector<double>
+  sigmas(const std::string filename
+       , const std::size_t max_chunk_size
+       , std::vector<double> means);
+
+  namespace Periodic {
+    /**
+     * angular distance between two angles
+     */
+    double
+    distance(double theta1, double theta2);
+
+    template <class T>
+    void
+    shift_matrix_columns_inplace(Matrix<T>& m, std::vector<T> shifts);
+  
+    /**
+     * simple stats for periodic observables:
+     *   1. number of observations in data set
+     *   2. number of observables
+     *   3. means of observables
+     */
+    std::tuple<std::size_t, std::size_t, std::vector<double>>
+    means(const std::string filename
+        , const std::size_t max_chunk_size);
+
+    std::vector<double>
+    sigmas(const std::string filename
+         , const std::size_t max_chunk_size
+         , std::vector<double> means);
+  } // end namespace FastPCA::Periodic
+
 } // end namespace FastPCA
-
 
 // template implementations
 #include "util.hxx"

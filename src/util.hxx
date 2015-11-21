@@ -33,59 +33,102 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
 
-namespace {
+  namespace {
+    template <class T>
+    void
+    _elementwise_mult(Matrix<T>& m, T factor) {
+      std::size_t nr = m.n_rows();
+      std::size_t nc = m.n_cols();
+      std::size_t i,j;
+      for (j=0; j < nc; ++j) {
+        for (i=0; i < nr; ++i) {
+          m(i,j) *= factor;
+        }
+      }
+    }
+  } // end local namespace
+  
   template <class T>
   void
-  _elementwise_mult(Matrix<T>& m, T factor) {
-    std::size_t nr = m.n_rows();
-    std::size_t nc = m.n_cols();
+  deg2rad_inplace(Matrix<T>& m) {
+    _elementwise_mult(m, M_PI / 180.0);
+  }
+  
+  template <class T>
+  void
+  rad2deg_inplace(Matrix<T>& m) {
+    _elementwise_mult(m, 180.0 / M_PI);
+  }
+  
+  template <class T>
+  void
+  shift_matrix_columns_inplace(Matrix<T>& m, std::vector<T> shifts) {
     std::size_t i,j;
-    for (j=0; j < nc; ++j) {
-      for (i=0; i < nr; ++i) {
-        m(i,j) *= factor;
+    const std::size_t n_rows = m.n_rows();
+    const std::size_t n_cols = m.n_cols();
+    #pragma omp parallel for default(none)\
+                             private(i,j)\
+                             firstprivate(n_rows,n_cols)\
+                             shared(m,shifts)
+    for (j=0; j < n_cols; ++j) {
+      for (i=0; i < n_rows; ++i) {
+        m(i,j) = m(i,j) - shifts[j];
       }
     }
   }
-} // end local namespace
 
-template <class T>
-void
-deg2rad(Matrix<T>& m) {
-  _elementwise_mult(m, M_PI / 180.0);
-}
-
-template <class T>
-void
-rad2deg(Matrix<T>& m) {
-  _elementwise_mult(m, 180.0 / M_PI);
-}
-
-template <class T>
-std::vector<T> parse_line(std::string line) {
-  std::vector<T> out;
-  std::size_t len = line.length();
-  const char* last_start = &line[0];
-  std::size_t j=0;
-  bool whitespace_before = true;
-  while (j < len) {
-    if (line[j] == ' ') {
-      if ( ! whitespace_before) {
-        line[j] = '\0';
-        out.push_back(atof(last_start));
-        whitespace_before = true;
+  template <class T>
+  std::vector<T> parse_line(std::string line) {
+    std::vector<T> out;
+    std::size_t len = line.length();
+    const char* last_start = &line[0];
+    std::size_t j=0;
+    bool whitespace_before = true;
+    while (j < len) {
+      if (line[j] == ' ') {
+        if ( ! whitespace_before) {
+          line[j] = '\0';
+          out.push_back(atof(last_start));
+          whitespace_before = true;
+        }
+      } else {
+        // now we have some character which is no whitespace
+        if (whitespace_before) {
+          last_start = &line[j];
+        }
+        whitespace_before = false;
       }
-    } else {
-      // now we have some character which is no whitespace
-      if (whitespace_before) {
-        last_start = &line[j];
-      }
-      whitespace_before = false;
+      ++j;
     }
-    ++j;
+    out.push_back(atof(last_start));
+    return out;
   }
-  out.push_back(atof(last_start));
-  return out;
-}
+
+  namespace Periodic {
+    template <class T>
+    void
+    shift_matrix_columns_inplace(Matrix<T>& m
+                               , std::vector<T> shifts) {
+      std::size_t i,j;
+      const std::size_t n_rows = m.n_rows();
+      const std::size_t n_cols = m.n_cols();
+      #pragma omp parallel for default(none)\
+                               private(i,j)\
+                               firstprivate(n_rows,n_cols)\
+                               shared(m,shifts)
+      for (j=0; j < n_cols; ++j) {
+        for (i=0; i < n_rows; ++i) {
+          m(i,j) = m(i,j) - shifts[j];
+          // periodic boundary checks
+          if (m(i,j) < -M_PI) {
+            m(i,j) = m(i,j) + 2*M_PI;
+          } else if (m(i,j) > M_PI) {
+            m(i,j) = m(i,j) - 2*M_PI;
+          }
+        }
+      }
+    }
+  } // FastPCA::Periodic
 
 } // namespace FastPCA
 

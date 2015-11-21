@@ -81,15 +81,6 @@ namespace FastPCA {
   } // end local namespace
 
 
-  namespace Periodic {
-    void calculate_projections(const std::string file_in,
-                               const std::string file_out,
-                               Matrix<double> eigenvecs,
-                               std::size_t mem_buf_size,
-                               bool use_correlation);
-  }; // end namespace FastPCA::Periodic
-
-
   enum FileType {
     UNKNOWN, XTC, GRO, PDB
   };
@@ -146,6 +137,15 @@ namespace FastPCA {
                              Matrix<double> eigenvecs,
                              std::size_t mem_buf_size,
                              bool use_correlation);
+
+  namespace Periodic {
+    void calculate_projections(const std::string file_in,
+                               const std::string file_out,
+                               Matrix<double> eigenvecs,
+                               std::size_t mem_buf_size,
+                               bool use_correlation);
+  } // end namespace FastPCA::Periodic
+
 } // end namespace FastPCA
 
 // load template implementations

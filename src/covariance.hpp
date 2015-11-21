@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
   namespace {
-    struct CovAccumulation {
+    struct _CovAccumulation {
       CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n);
       CovAccumulation(std::size_t n_observations, std::size_t n_observables);
       SymmetricMatrix<double> m;
@@ -37,50 +37,25 @@ namespace FastPCA {
       std::size_t n_observations;
     };
 
-    CovAccumulation
-    accumulate_covariance(const Matrix<double>& m);
+    _CovAccumulation
+    _accumulate_covariance(const Matrix<double>& m);
 
-    CovAccumulation
-    join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2);
+    _CovAccumulation
+    _join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2);
 
     SymmetricMatrix<double>
-    get_covariance(const CovAccumulation& acc);
-
-    double
-    angular_distance(double theta1, double theta2);
+    _get_covariance(const CovAccumulation& acc);
   } // end local namespace
-
-  namespace Periodic {
-   /**
-    * simple stats for periodic observables:
-    *   1. number of observations in data set
-    *   2. number of observables
-    *   3. means of observables
-    *   4. sigmas (i.e. standard deviations) of observables
-    */
-    std::tuple<std::size_t, std::size_t, std::vector<double>>
-    stats(const std::string filename
-        , const std::size_t max_chunk_size);
-
-    SymmetricMatrix<double>
-    covariance_matrix(const std::string filename
-                    , const std::size_t max_chunk_size);
-  }; // end namespace FastPCA::Periodic
-  
-
-  /**
-   * simple stats for observables:
-   *   1. number of observations in data set
-   *   2. number of observables
-   *   3. means of observables
-   *   4. sigmas (i.e. standard deviations) of observables
-   */
-  std::tuple<std::size_t, std::size_t, std::vector<double>, std::vector<double>>
-  stats(const std::string filename
-      , const std::size_t max_chunk_size);
 
   SymmetricMatrix<double>
   covariance_matrix(const std::string filename
                   , const std::size_t max_chunk_size);
+
+  namespace Periodic {
+    SymmetricMatrix<double>
+    covariance_matrix(const std::string filename
+                    , const std::size_t max_chunk_size);
+  }; // end namespace FastPCA::Periodic
+
 } // end namespace FastPCA
 

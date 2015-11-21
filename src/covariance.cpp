@@ -49,23 +49,23 @@ namespace FastPCA {
 
   namespace {
 
-    CovAccumulation::CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n)
+    _CovAccumulation::_CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n)
       : m(m),
         sum_observations(sum),
         n_observations(n) {
     }
 
-    CovAccumulation::CovAccumulation(std::size_t n_observations, std::size_t n_observables)
+    _CovAccumulation::_CovAccumulation(std::size_t n_observations, std::size_t n_observables)
       : m(SymmetricMatrix<double>(n_observables)),
         sum_observations(std::vector<double>(n_observables)),
         n_observations(n_observations) {
     }
 
-    CovAccumulation
-    accumulate_covariance(const Matrix<double>& m) {
+    _CovAccumulation
+    _accumulate_covariance(const Matrix<double>& m) {
       const std::size_t nr = m.n_rows();
       const std::size_t nc = m.n_cols();
-      CovAccumulation c(nr, nc);
+      _CovAccumulation c(nr, nc);
       std::size_t i, j, t;
       double cc;
       // calculate (i,j)-part of covariances
@@ -97,8 +97,8 @@ namespace FastPCA {
       return c;
     }
 
-    CovAccumulation
-    join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2) {
+    _CovAccumulation
+    _join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2) {
       assert(c1.m.n_cols() == c2.m.n_cols());
       SymmetricMatrix<double> joint_m = c1.m + c2.m;
       std::vector<double> joint_sum(c1.sum_observations.size());
@@ -112,7 +112,7 @@ namespace FastPCA {
     }
 
     SymmetricMatrix<double>
-    get_covariance(const CovAccumulation& acc) {
+    _get_covariance(const CovAccumulation& acc) {
       SymmetricMatrix<double> sm = acc.m;
       std::size_t i, j;
       for (i = 0; i < sm.n_cols(); ++i) {
@@ -124,133 +124,86 @@ namespace FastPCA {
       }
       return sm;
     }
+    
+    SymmetricMatrix<double>
+    _covariance_matrix(const std::string filename
+                     , const std::size_t max_chunk_size) {
+      //TODO periodicity and normalization
+      
+      // take only half size because of intermediate results.
+      std::size_t chunk_size = max_chunk_size / 2;
+      // data files are often to big to read into RAM completely.
+      // thus, we read the data blockwise, calculate the temporary
+      // covariance data and accumulate the results.
+      DataFileReader<double> input_file(filename, chunk_size);
+      std::size_t n_available_cols = input_file.n_cols();
+      CovAccumulation acc(0, n_available_cols);
+      Matrix<double> m = std::move(input_file.next_block());
+      while (m.n_rows() > 0) {
+        acc = join_accumulations(acc, accumulate_covariance(m));
+        m = std::move(input_file.next_block());
+      }
+      // last, we calculate the total covariance from the
+      // accumulated data.
+      return get_covariance(acc);
+    }
   } // end local namespace
 
 
   namespace Periodic {
-    // compute circular means by averaging sines and cosines
-    // and resolving the mean angle with the atan2 function.
-    // additionally, return number of observations.
-    std::tuple<std::size_t, std::size_t, std::vector<double>>
-    stats(const std::string filename
-        , const std::size_t max_chunk_size) {
-    //TODO sigmas
-      DataFileReader<double> input_file(filename, max_chunk_size);
-      Matrix<double> m = std::move(input_file.next_block());
-      std::size_t i, j;
-      std::size_t nr = m.n_rows();
-      std::size_t nc = m.n_cols();
-      std::vector<double> means(nc, 0.0);
-      std::vector<double> means_sin(nc, 0.0);
-      std::vector<double> means_cos(nc, 0.0);
-      std::size_t n_rows_total = 0;
-      while (nr > 0) {
-        for (j=0; j < nc; ++j) {
-          for (i=0; i < nr; ++i) {
-            means_sin[j] += sin(m(i,j));
-            means_cos[j] += cos(m(i,j));
-          }
-        }
-        n_rows_total += nr;
-        m = std::move(input_file.next_block());
-        nr = m.n_rows();
-      }
-      for (j=0; j < nc; ++j) {
-        means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
-      }
-      return std::make_tuple(n_rows_total, nc, means);
-    }
     // compute covariance matrix for periodic data
     SymmetricMatrix<double>
     covariance_matrix(const std::string filename
                     , const std::size_t max_chunk_size) {
-      // because of the periodicity of the underlying data,
-      // we cannot use the summation trick we use above
-      // to accumulate the covariance in one pass.
-      // instead, we need to account for periodic boundary
-      // checks for every observation. therefore, we have to
-      // compute the means beforehand and compute the covariance
-      // in a second pass through the data.
-      std::size_t n_rows;
-      std::size_t n_cols;
-      std::vector<double> means;
-      std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(filename, max_chunk_size);
-      // compute covariance matrix using the precomputed means.
-      // for every expression (x_n - mean_n), check periodic boundaries
-      // before computing the product (x_i - mean_i)(x_j - mean_j).
-      SymmetricMatrix<double> cov(n_cols);
-      {
-        DataFileReader<double> input_file(filename, max_chunk_size);
-        Matrix<double> m = std::move(input_file.next_block());
-        std::size_t nr = m.n_rows();
-        std::size_t i, j, n;
-        while (nr > 0) {
-          #pragma omp parallel for default(none)\
-                                   private(i,j,n)\
-                                   firstprivate(n_cols,nr,means,n_rows)\
-                                   shared(m,cov)
-          for (j=0; j < n_cols; ++j) {
-            for (i=0; i <= j; ++i) {
-              for (n=0; n < nr; ++n) {
-                cov(j,i) += FastPCA::angular_distance(m(n,j), means[j])
-                          * FastPCA::angular_distance(m(n,i), means[i])
-                          / (n_rows-1);
-              }
-            }
-          }
-          m = std::move(input_file.next_block());
-          nr = m.n_rows();
-        }
-      }
-      return cov;
+      //TODO periodicity
+      return _covariance_matrix(filename, max_chunk_size);
+//      // because of the periodicity of the underlying data,
+//      // we cannot use the summation trick we use above
+//      // to accumulate the covariance in one pass.
+//      // instead, we need to account for periodic boundary
+//      // checks for every observation. therefore, we have to
+//      // compute the means beforehand and compute the covariance
+//      // in a second pass through the data.
+//      std::size_t n_rows;
+//      std::size_t n_cols;
+//      std::vector<double> means;
+//      std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(filename, max_chunk_size);
+//      // compute covariance matrix using the precomputed means.
+//      // for every expression (x_n - mean_n), check periodic boundaries
+//      // before computing the product (x_i - mean_i)(x_j - mean_j).
+//      SymmetricMatrix<double> cov(n_cols);
+//      {
+//        DataFileReader<double> input_file(filename, max_chunk_size);
+//        Matrix<double> m = std::move(input_file.next_block());
+//        std::size_t nr = m.n_rows();
+//        std::size_t i, j, n;
+//        while (nr > 0) {
+//          //TODO shift by means
+//          #pragma omp parallel for default(none)\
+//                                   private(i,j,n)\
+//                                   firstprivate(n_cols,nr,means,n_rows)\
+//                                   shared(m,cov)
+//          for (j=0; j < n_cols; ++j) {
+//            for (i=0; i <= j; ++i) {
+//              for (n=0; n < nr; ++n) {
+//                cov(j,i) += FastPCA::angular_distance(m(n,j), means[j])
+//                          * FastPCA::angular_distance(m(n,i), means[i])
+//                          / (n_rows-1);
+//              }
+//            }
+//          }
+//          m = std::move(input_file.next_block());
+//          nr = m.n_rows();
+//        }
+//      }
+//      return cov;
     }
   } // end namespace FastPCA::Periodic
-
-
-  std::tuple<std::size_t, std::size_t, std::vector<double>>
-  stats(const std::string filename
-      , const std::size_t max_chunk_size) {
-    //TODO: sigmas
-
-    DataFileReader<double> input_file(filename, max_chunk_size);
-    std::size_t n_cols = input_file.n_cols();
-    std::size_t n_rows = 0;
-    std::vector<double> means(n_cols);
-    Matrix<double> m = std::move(input_file.next_block());
-    while (m.n_rows() > 0) {
-      n_rows += m.n_rows();
-      for (std::size_t i=0; i < m.n_rows(); ++i) {
-        for (std::size_t j=0; j < n_cols; ++j) {
-          means[j] += m(i,j);
-        }
-      }
-      m = std::move(input_file.next_block());
-    }
-    for (std::size_t j=0; j < n_cols; ++j) {
-      means[j] /= n_rows;
-    }
-    return std::make_tuple(n_rows, n_cols, means);
-  }
 
   SymmetricMatrix<double>
   covariance_matrix(const std::string filename
                   , const std::size_t max_chunk_size) {
-    // take only half size because of intermediate results.
-    std::size_t chunk_size = max_chunk_size / 2;
-    // data files are often to big to read into RAM completely.
-    // thus, we read the data blockwise, calculate the temporary
-    // covariance data and accumulate the results.
-    DataFileReader<double> input_file(filename, chunk_size);
-    std::size_t n_available_cols = input_file.n_cols();
-    CovAccumulation acc(0, n_available_cols);
-    Matrix<double> m = std::move(input_file.next_block());
-    while (m.n_rows() > 0) {
-      acc = join_accumulations(acc, accumulate_covariance(m));
-      m = std::move(input_file.next_block());
-    }
-    // last, we calculate the total covariance from the
-    // accumulated data.
-    return get_covariance(acc);
+    return _covariance_matrix(filename, max_chunk_size);
   }
 } // end namespace FastPCA
 
