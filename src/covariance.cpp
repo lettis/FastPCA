@@ -98,7 +98,7 @@ namespace FastPCA {
     }
 
     _CovAccumulation
-    _join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2) {
+    _join_accumulations(const _CovAccumulation& c1, const _CovAccumulation& c2) {
       assert(c1.m.n_cols() == c2.m.n_cols());
       SymmetricMatrix<double> joint_m = c1.m + c2.m;
       std::vector<double> joint_sum(c1.sum_observations.size());
@@ -112,7 +112,7 @@ namespace FastPCA {
     }
 
     SymmetricMatrix<double>
-    _get_covariance(const CovAccumulation& acc) {
+    _get_covariance(const _CovAccumulation& acc) {
       SymmetricMatrix<double> sm = acc.m;
       std::size_t i, j;
       for (i = 0; i < sm.n_cols(); ++i) {
@@ -134,31 +134,49 @@ namespace FastPCA {
       std::vector<double> means;
       std::vector<double> sigmas;
       if (use_correlation || periodic) {
-        //TODO
+        if (periodic) {
+          std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(filename, max_chunk_size);
+        } else {
+          std::tie(std::ignore, std::ignore, means) = FastPCA::means(filename, max_chunk_size);
+        }
       }
-
+      if (use_correlation) {
+        if (periodic) {
+          sigmas = FastPCA::Periodic::sigmas(filename, max_chunk_size, means);
+        } else {
+          sigmas = FastPCA::sigmas(filename, max_chunk_size, means);
+        }
+      }
+      for (double& s: sigmas) {
+        s = 1.0 / s;
+      }
       // take only half size because of intermediate results.
       std::size_t chunk_size = max_chunk_size / 2;
       // data files are often to big to read into RAM completely.
       // thus, we read the data blockwise, calculate the temporary
       // covariance data and accumulate the results.
       DataFileReader<double> input_file(filename, chunk_size);
-      std::size_t n_available_cols = input_file.n_cols();
-      CovAccumulation acc(0, n_available_cols);
+      std::size_t n_cols = input_file.n_cols();
+      _CovAccumulation acc(0, n_cols);
       Matrix<double> m = std::move(input_file.next_block());
       while (m.n_rows() > 0) {
+        // center data
         if (periodic) {
-          //TODO center
+          FastPCA::deg2rad_inplace(m);
+          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
+        } else if (use_correlation) {
+          FastPCA::shift_matrix_columns_inplace(m, means);
         }
+        // normalize columns by dividing by sigma
         if (use_correlation) {
-          //TODO divide by sigma
+          FastPCA::scale_matrix_columns_inplace(m, sigmas);
         }
-        acc = join_accumulations(acc, accumulate_covariance(m));
+        acc = _join_accumulations(acc, _accumulate_covariance(m));
         m = std::move(input_file.next_block());
       }
       // last, we calculate the total covariance from the
       // accumulated data.
-      return get_covariance(acc);
+      return _get_covariance(acc);
     }
   } // end local namespace
 
@@ -169,47 +187,7 @@ namespace FastPCA {
     covariance_matrix(const std::string filename
                     , const std::size_t max_chunk_size
                     , bool use_correlation) {
-      return _covariance_matrix(filename, max_chunk_size, use_correlation);
-//      // because of the periodicity of the underlying data,
-//      // we cannot use the summation trick we use above
-//      // to accumulate the covariance in one pass.
-//      // instead, we need to account for periodic boundary
-//      // checks for every observation. therefore, we have to
-//      // compute the means beforehand and compute the covariance
-//      // in a second pass through the data.
-//      std::size_t n_rows;
-//      std::size_t n_cols;
-//      std::vector<double> means;
-//      std::tie(n_rows, n_cols, means) = FastPCA::Periodic::means(filename, max_chunk_size);
-//      // compute covariance matrix using the precomputed means.
-//      // for every expression (x_n - mean_n), check periodic boundaries
-//      // before computing the product (x_i - mean_i)(x_j - mean_j).
-//      SymmetricMatrix<double> cov(n_cols);
-//      {
-//        DataFileReader<double> input_file(filename, max_chunk_size);
-//        Matrix<double> m = std::move(input_file.next_block());
-//        std::size_t nr = m.n_rows();
-//        std::size_t i, j, n;
-//        while (nr > 0) {
-//          //TODO shift by means
-//          #pragma omp parallel for default(none)\
-//                                   private(i,j,n)\
-//                                   firstprivate(n_cols,nr,means,n_rows)\
-//                                   shared(m,cov)
-//          for (j=0; j < n_cols; ++j) {
-//            for (i=0; i <= j; ++i) {
-//              for (n=0; n < nr; ++n) {
-//                cov(j,i) += FastPCA::angular_distance(m(n,j), means[j])
-//                          * FastPCA::angular_distance(m(n,i), means[i])
-//                          / (n_rows-1);
-//              }
-//            }
-//          }
-//          m = std::move(input_file.next_block());
-//          nr = m.n_rows();
-//        }
-//      }
-//      return cov;
+      return _covariance_matrix(filename, max_chunk_size, use_correlation, true);
     }
   } // end namespace FastPCA::Periodic
 
@@ -217,7 +195,7 @@ namespace FastPCA {
   covariance_matrix(const std::string filename
                   , const std::size_t max_chunk_size
                   , bool use_correlation) {
-    return _covariance_matrix(filename, max_chunk_size, use_correlation);
+    return _covariance_matrix(filename, max_chunk_size, use_correlation, false);
   }
 } // end namespace FastPCA
 

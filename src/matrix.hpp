@@ -93,43 +93,41 @@ class SymmetricMatrix {
 
 
 namespace {
-
-template <class T>
-struct SyevData {
-  // compute eigenvectors and eigenvalues ('V')
-  // or eigenvalues only ('N')
-  char jobz;
-  // store symmetric matrix in upper (='U') or lower (='L') triangle.
-  // beware: FORTRAN uses column-major matrix indices,
-  // thus FORTRAN-matrices are transposed!
-  char uplo;
-  // matrix order
-  int n;
-  // array for input data; later contains eigenvectors
-  std::vector<T> a;
-  // leading dimension
-  int lda;
-  // array for eigenvalues (in ascending order)
-  std::vector<T> w;
-  // size of work array
-  int lwork;
-  // array for temporary data
-  std::vector<T> work;
-  // == 0: success, < 0: |info|-th argument had illegal value, > 0 convergence failure
-  int info;
-};
-
-// set lwork = -1 to query for optimal workspace size.
-// then re-prepare with dat.lwork = dat.work[0]
-template <class T>
-void _prepareSyevData(SyevData<T>& dat, SymmetricMatrix<T>& m, int lwork);
-
-template <class T>
-Matrix<T> _extractEigenvectors(const SyevData<T>& dat);
-
-template <class T>
-std::vector<T> _extractEigenvalues(const SyevData<T>& dat);
-
+  template <class T>
+  struct SyevData {
+    // compute eigenvectors and eigenvalues ('V')
+    // or eigenvalues only ('N')
+    char jobz;
+    // store symmetric matrix in upper (='U') or lower (='L') triangle.
+    // beware: FORTRAN uses column-major matrix indices,
+    // thus FORTRAN-matrices are transposed!
+    char uplo;
+    // matrix order
+    int n;
+    // array for input data; later contains eigenvectors
+    std::vector<T> a;
+    // leading dimension
+    int lda;
+    // array for eigenvalues (in ascending order)
+    std::vector<T> w;
+    // size of work array
+    int lwork;
+    // array for temporary data
+    std::vector<T> work;
+    // == 0: success, < 0: |info|-th argument had illegal value, > 0 convergence failure
+    int info;
+  };
+  
+  // set lwork = -1 to query for optimal workspace size.
+  // then re-prepare with dat.lwork = dat.work[0]
+  template <class T>
+  void _prepareSyevData(SyevData<T>& dat, SymmetricMatrix<T>& m, int lwork);
+  
+  template <class T>
+  Matrix<T> _extractEigenvectors(const SyevData<T>& dat);
+  
+  template <class T>
+  std::vector<T> _extractEigenvalues(const SyevData<T>& dat);
 } // end local namespace
 
 } // end namespace FastPCA

@@ -177,10 +177,10 @@ int main(int argc, char* argv[]) {
         }
         if (periodic) {
           verbose && std::cout << "computing projections for periodic data" << std::endl;
-          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
+          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation);
         } else {
           verbose && std::cout << "computing projections" << std::endl;
-          FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size);
+          FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation);
         }
       }
     } else {

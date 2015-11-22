@@ -26,6 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #include "util.hpp"
+#include "file_io.hpp"
 
 #include <string>
 
@@ -40,12 +41,13 @@ namespace FastPCA {
       DataFileReader<double> input_file(filename, max_chunk_size);
       std::size_t n_cols = means.size();
       std::size_t n_rows = 0;
-      std::vector<double> sigmas(n_cols);
+      std::vector<double> sigmas(n_cols, 0.0);
       Matrix<double> m = std::move(input_file.next_block());
       while (m.n_rows() > 0) {
         n_rows += m.n_rows();
         // subtract means
         if (periodic) {
+          FastPCA::deg2rad_inplace(m);
           FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
         } else {
           FastPCA::shift_matrix_columns_inplace(m, means);
@@ -60,7 +62,7 @@ namespace FastPCA {
       }
       // compute sigmas from variances
       for (std::size_t j=0; j < n_cols; ++j) {
-        sigmas[j] /= sqrt(sigmas[j] / (n_rows-1));
+        sigmas[j] = sqrt(sigmas[j] / (n_rows-1));
       }
       return sigmas;
     }
@@ -129,6 +131,7 @@ namespace FastPCA {
         , const std::size_t max_chunk_size) {
       DataFileReader<double> input_file(filename, max_chunk_size);
       Matrix<double> m = std::move(input_file.next_block());
+      FastPCA::deg2rad_inplace(m);
       std::size_t i, j;
       std::size_t nr = m.n_rows();
       std::size_t nc = m.n_cols();
@@ -145,6 +148,7 @@ namespace FastPCA {
         }
         n_rows_total += nr;
         m = std::move(input_file.next_block());
+        FastPCA::deg2rad_inplace(m);
         nr = m.n_rows();
       }
       for (j=0; j < nc; ++j) {

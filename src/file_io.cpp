@@ -74,25 +74,27 @@ namespace FastPCA {
                         Matrix<double> eigenvecs,
                         std::size_t mem_buf_size,
                         bool use_correlation) {
-    //TODO adapt
-    
     // calculating the projection, we need twice the space
     // (original data + result)
     mem_buf_size /= 4;
-    bool first_write = true;
+    bool append_to_file = false;
+    std::vector<double> means;
+    std::vector<double> sigmas;
+    if (use_correlation) {
+      std::tie(std::ignore, std::ignore, means) = FastPCA::means(file_in, mem_buf_size);
+      sigmas = FastPCA::sigmas(file_in, mem_buf_size, means);
+    }
     DataFileReader<double> fh_file_in(file_in, mem_buf_size);
     DataFileWriter<double> fh_file_out(file_out);
     while ( ! fh_file_in.eof()) {
       Matrix<double> m = std::move(fh_file_in.next_block());
       if (m.n_rows() > 0) {
-        if (first_write) {
-          // write projected data directly to file
-          fh_file_out.write(std::move(m*eigenvecs));
-          first_write = false;
-        } else {
-          // append next project block to file
-          fh_file_out.write(std::move(m*eigenvecs), true);
+        if (use_correlation) {
+          FastPCA::shift_matrix_columns_inplace(m, means);
+          FastPCA::scale_matrix_columns_inplace(m, sigmas);
         }
+        fh_file_out.write(std::move(m*eigenvecs), append_to_file);
+        append_to_file = true;
       }
     }
   }
@@ -104,14 +106,24 @@ namespace FastPCA {
                           Matrix<double> eigenvecs,
                           std::size_t mem_buf_size,
                           bool use_correlation) {
-      //TODO: adapt
       mem_buf_size /= 4;
+      std::vector<double> means;
+      std::vector<double> sigmas;
+      std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
+      if (use_correlation) {
+        sigmas = FastPCA::Periodic::sigmas(file_in, mem_buf_size, means);
+      }
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
       bool append_to_file = false;
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = fh_file_in.next_block();
+        FastPCA::deg2rad_inplace(m);
         if (m.n_rows() > 0) {
+          //FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
+          if (use_correlation) {
+            FastPCA::scale_matrix_columns_inplace(m, sigmas);
+          }
           fh_file_out.write(m*eigenvecs, append_to_file);
           append_to_file = true;
         }

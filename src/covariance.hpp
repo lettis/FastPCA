@@ -30,8 +30,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace FastPCA {
   namespace {
     struct _CovAccumulation {
-      CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n);
-      CovAccumulation(std::size_t n_observations, std::size_t n_observables);
+      _CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n);
+      _CovAccumulation(std::size_t n_observations, std::size_t n_observables);
       SymmetricMatrix<double> m;
       std::vector<double> sum_observations;
       std::size_t n_observations;
@@ -41,10 +41,10 @@ namespace FastPCA {
     _accumulate_covariance(const Matrix<double>& m);
 
     _CovAccumulation
-    _join_accumulations(const CovAccumulation& c1, const CovAccumulation& c2);
+    _join_accumulations(const _CovAccumulation& c1, const _CovAccumulation& c2);
 
     SymmetricMatrix<double>
-    _get_covariance(const CovAccumulation& acc);
+    _get_covariance(const _CovAccumulation& acc);
   } // end local namespace
 
   SymmetricMatrix<double>

@@ -56,13 +56,17 @@ namespace FastPCA {
   void
   shift_matrix_columns_inplace(Matrix<T>& m, std::vector<T> shifts);
 
+  template <class T>
+  void
+  scale_matrix_columns_inplace(Matrix<T>& m, std::vector<T> factors);
+
   /**
    * simple stats for observables:
    *   1. number of observations in data set
    *   2. number of observables
    *   3. means of observables
    */
-  std::tuple<std::size_t, std::size_t, std::vector<double>, std::vector<double>>
+  std::tuple<std::size_t, std::size_t, std::vector<double>>
   means(const std::string filename
       , const std::size_t max_chunk_size);
 

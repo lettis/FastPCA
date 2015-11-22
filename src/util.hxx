@@ -78,6 +78,23 @@ namespace FastPCA {
   }
 
   template <class T>
+  void
+  scale_matrix_columns_inplace(Matrix<T>& m, std::vector<T> factors) {
+    std::size_t i,j;
+    const std::size_t n_rows = m.n_rows();
+    const std::size_t n_cols = m.n_cols();
+    #pragma omp parallel for default(none)\
+                             private(i,j)\
+                             firstprivate(n_rows,n_cols)\
+                             shared(m,factors)
+    for (j=0; j < n_cols; ++j) {
+      for (i=0; i < n_rows; ++i) {
+        m(i,j) = m(i,j) * factors[j];
+      }
+    }
+  }
+
+  template <class T>
   std::vector<T> parse_line(std::string line) {
     std::vector<T> out;
     std::size_t len = line.length();
