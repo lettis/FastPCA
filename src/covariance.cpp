@@ -49,15 +49,13 @@ namespace FastPCA {
 
   namespace {
 
-    _CovAccumulation::_CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n)
+    _CovAccumulation::_CovAccumulation(SymmetricMatrix<double> m, std::size_t n)
       : m(m),
-        sum_observations(sum),
         n_observations(n) {
     }
 
     _CovAccumulation::_CovAccumulation(std::size_t n_observations, std::size_t n_observables)
       : m(SymmetricMatrix<double>(n_observables)),
-        sum_observations(std::vector<double>(n_observables)),
         n_observations(n_observations) {
     }
 
@@ -82,16 +80,6 @@ namespace FastPCA {
           }
           c.m(i,j) = cc;
         }
-        cc = 0.0;
-        #pragma omp parallel for default(none)\
-                                 firstprivate(i)\
-                                 private(t)\
-                                 shared(c,m)\
-                                 reduction(+:cc)
-        for (t = 0; t < nr; ++t) {
-          cc += m(t,i);
-        }
-        c.sum_observations[i] = cc;
       }
       c.n_observations = nr;
       return c;
@@ -100,26 +88,16 @@ namespace FastPCA {
     _CovAccumulation
     _join_accumulations(const _CovAccumulation& c1, const _CovAccumulation& c2) {
       assert(c1.m.n_cols() == c2.m.n_cols());
-      SymmetricMatrix<double> joint_m = c1.m + c2.m;
-      std::vector<double> joint_sum(c1.sum_observations.size());
-      std::size_t joint_n_obs = c1.n_observations + c2.n_observations;
-      std::transform(c1.sum_observations.begin(),
-                     c1.sum_observations.end(),
-                     c2.sum_observations.begin(),
-                     joint_sum.begin(),
-                     std::plus<double>());
-      return {joint_m, joint_sum, joint_n_obs};
+      return {c1.m+c2.m, c1.n_observations+c2.n_observations};
     }
 
     SymmetricMatrix<double>
     _get_covariance(const _CovAccumulation& acc) {
-      SymmetricMatrix<double> sm = acc.m;
       std::size_t i, j;
+      SymmetricMatrix<double> sm = acc.m;
       for (i = 0; i < sm.n_cols(); ++i) {
         for (j = 0; j <= i; ++j) {
-          sm(i,j) = (sm(i,j) - (acc.sum_observations[i] *
-                                acc.sum_observations[j] /
-                                (acc.n_observations)      )) / (acc.n_observations-1);
+          sm(i,j) /= (acc.n_observations-1);
         }
       }
       return sm;
@@ -133,12 +111,10 @@ namespace FastPCA {
       // get means and sigmas if needed
       std::vector<double> means;
       std::vector<double> sigmas;
-      if (use_correlation || periodic) {
-        if (periodic) {
-          std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(filename, max_chunk_size);
-        } else {
-          std::tie(std::ignore, std::ignore, means) = FastPCA::means(filename, max_chunk_size);
-        }
+      if (periodic) {
+        std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(filename, max_chunk_size);
+      } else {
+        std::tie(std::ignore, std::ignore, means) = FastPCA::means(filename, max_chunk_size);
       }
       if (use_correlation) {
         if (periodic) {
@@ -146,9 +122,9 @@ namespace FastPCA {
         } else {
           sigmas = FastPCA::sigmas(filename, max_chunk_size, means);
         }
-      }
-      for (double& s: sigmas) {
-        s = 1.0 / s;
+        for (double& s: sigmas) {
+          s = 1.0 / s;
+        }
       }
       // take only half size because of intermediate results.
       std::size_t chunk_size = max_chunk_size / 2;
@@ -164,7 +140,7 @@ namespace FastPCA {
         if (periodic) {
           FastPCA::deg2rad_inplace(m);
           FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-        } else if (use_correlation) {
+        } else {
           FastPCA::shift_matrix_columns_inplace(m, means);
         }
         // normalize columns by dividing by sigma

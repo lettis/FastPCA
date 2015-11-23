@@ -30,10 +30,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace FastPCA {
   namespace {
     struct _CovAccumulation {
-      _CovAccumulation(SymmetricMatrix<double> m, std::vector<double> sum, std::size_t n);
+      _CovAccumulation(SymmetricMatrix<double> m, std::size_t n);
       _CovAccumulation(std::size_t n_observations, std::size_t n_observables);
       SymmetricMatrix<double> m;
-      std::vector<double> sum_observations;
       std::size_t n_observations;
     };
 
