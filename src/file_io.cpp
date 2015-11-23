@@ -83,6 +83,9 @@ namespace FastPCA {
     std::tie(std::ignore, std::ignore, means) = FastPCA::means(file_in, mem_buf_size);
     if (use_correlation) {
       sigmas = FastPCA::sigmas(file_in, mem_buf_size, means);
+      for (double& s: sigmas) {
+        s = 1.0 / s;
+      }
     }
     DataFileReader<double> fh_file_in(file_in, mem_buf_size);
     DataFileWriter<double> fh_file_out(file_out);
@@ -112,6 +115,9 @@ namespace FastPCA {
       std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
       if (use_correlation) {
         sigmas = FastPCA::Periodic::sigmas(file_in, mem_buf_size, means);
+        for (double& s: sigmas) {
+          s = 1.0 / s;
+        }
       }
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
