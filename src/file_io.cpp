@@ -89,8 +89,8 @@ namespace FastPCA {
     while ( ! fh_file_in.eof()) {
       Matrix<double> m = std::move(fh_file_in.next_block());
       if (m.n_rows() > 0) {
+        FastPCA::shift_matrix_columns_inplace(m, means);
         if (use_correlation) {
-          FastPCA::shift_matrix_columns_inplace(m, means);
           FastPCA::scale_matrix_columns_inplace(m, sigmas);
         }
         fh_file_out.write(std::move(m*eigenvecs), append_to_file);
@@ -118,9 +118,9 @@ namespace FastPCA {
       bool append_to_file = false;
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = fh_file_in.next_block();
-        FastPCA::deg2rad_inplace(m);
         if (m.n_rows() > 0) {
-          //FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
+          FastPCA::deg2rad_inplace(m);
+          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
           if (use_correlation) {
             FastPCA::scale_matrix_columns_inplace(m, sigmas);
           }
