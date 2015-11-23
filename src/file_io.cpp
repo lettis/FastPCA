@@ -80,8 +80,8 @@ namespace FastPCA {
     bool append_to_file = false;
     std::vector<double> means;
     std::vector<double> sigmas;
+    std::tie(std::ignore, std::ignore, means) = FastPCA::means(file_in, mem_buf_size);
     if (use_correlation) {
-      std::tie(std::ignore, std::ignore, means) = FastPCA::means(file_in, mem_buf_size);
       sigmas = FastPCA::sigmas(file_in, mem_buf_size, means);
     }
     DataFileReader<double> fh_file_in(file_in, mem_buf_size);
