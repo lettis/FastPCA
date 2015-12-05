@@ -108,7 +108,8 @@ namespace FastPCA {
                           const std::string file_out,
                           Matrix<double> eigenvecs,
                           std::size_t mem_buf_size,
-                          bool use_correlation) {
+                          bool use_correlation,
+                          std::vector<double> dih_shifts) {
       mem_buf_size /= 4;
       std::vector<double> means;
       std::vector<double> sigmas;
@@ -125,8 +126,14 @@ namespace FastPCA {
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = fh_file_in.next_block();
         if (m.n_rows() > 0) {
-          FastPCA::deg2rad_inplace(m);
-          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
+          if (dih_shifts.size() == 0) {
+            // default behaviour: shift by periodic means
+            FastPCA::deg2rad_inplace(m);
+            FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
+          } else {
+            std::cerr << "shifting by dih-barriers is not yet implemented!" << std::endl;
+            exit(EXIT_FAILURE);
+          }
           if (use_correlation) {
             FastPCA::scale_matrix_columns_inplace(m, sigmas);
           }

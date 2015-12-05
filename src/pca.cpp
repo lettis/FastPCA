@@ -39,6 +39,7 @@ namespace b_po = boost::program_options;
 int main(int argc, char* argv[]) {
   bool verbose = false;
   bool periodic = false;
+  bool dih_shift = false;
   bool use_correlation = false;
 
   b_po::options_description desc (std::string(argv[0]).append(
@@ -74,6 +75,8 @@ int main(int argc, char* argv[]) {
         "max. allocatable RAM [Gb] (default: 2)")
     ("periodic,P", b_po::value(&periodic)->zero_tokens(),
         "compute covariance and PCA on a torus (i.e. for periodic data like dihedral angles)")
+    ("dih-shift", b_po::value(&dih_shift)->zero_tokens(),
+        "shift barrier region of dihedrals to periodic border to minimize projection errors")
     ("verbose", b_po::value(&verbose)->zero_tokens(),
         "verbose mode (default: not set)")
     ("nthreads,n", b_po::value<std::size_t>()->default_value(0),
@@ -83,12 +86,12 @@ int main(int argc, char* argv[]) {
   try {
     b_po::store(b_po::parse_command_line(argc, argv, desc), args);
   } catch (b_po::error e) {
-    std::cout << e.what() << std::endl;
+    std::cerr << e.what() << std::endl;
   }
   b_po::notify(args);
 
   if (args.count("help")) {
-    std::cout << desc << std::endl;
+    std::cerr << desc << std::endl;
     return 1;
   }
 
@@ -118,12 +121,12 @@ int main(int argc, char* argv[]) {
       FastPCA::SymmetricMatrix<double> s;
       FastPCA::Matrix<double> vecs;
       if (input_covmat_file_given) {
-        verbose && std::cout << "loading covariance matrix from file" << std::endl;
+        verbose && std::cerr << "loading covariance matrix from file" << std::endl;
         FastPCA::DataFileReader<double> cov_in(args["cov-in"].as<std::string>());
         s = FastPCA::SymmetricMatrix<double>(cov_in.next_block(cov_in.n_cols()));
       } else {
         if (input_eigenvec_file_given) {
-          verbose && std::cout << "loading eigenvectors from file" << std::endl;
+          verbose && std::cerr << "loading eigenvectors from file" << std::endl;
           std::ifstream ifs(args["vec-in"].as<std::string>());
           int i=0;
           int n_cols = -1;
@@ -144,27 +147,27 @@ int main(int argc, char* argv[]) {
           }
         } else {
           if (periodic) {
-            verbose && ( ! use_correlation) && std::cout << "constructing covariance matrix for periodic data" << std::endl;
-            verbose &&     use_correlation  && std::cout << "constructing correlation matrix for periodic data" << std::endl;
+            verbose && ( ! use_correlation) && std::cerr << "constructing covariance matrix for periodic data" << std::endl;
+            verbose &&     use_correlation  && std::cerr << "constructing correlation matrix for periodic data" << std::endl;
             s = FastPCA::Periodic::covariance_matrix(file_input, mem_buf_size, use_correlation);
           } else {
-            verbose && ( ! use_correlation) && std::cout << "constructing covariance matrix" << std::endl;
-            verbose &&     use_correlation  && std::cout << "constructing correlation matrix" << std::endl;
+            verbose && ( ! use_correlation) && std::cerr << "constructing covariance matrix" << std::endl;
+            verbose &&     use_correlation  && std::cerr << "constructing correlation matrix" << std::endl;
             s = FastPCA::covariance_matrix(file_input, mem_buf_size, use_correlation);
           }
           if (covmat_file_given) {
-            verbose && ( ! use_correlation) && std::cout << "writing covariance matrix" << std::endl;
-            verbose &&     use_correlation  && std::cout << "writing correlation matrix" << std::endl;
+            verbose && ( ! use_correlation) && std::cerr << "writing covariance matrix" << std::endl;
+            verbose &&     use_correlation  && std::cerr << "writing correlation matrix" << std::endl;
             std::string covmat_file = args["cov"].as<std::string>();
             FastPCA::DataFileWriter<double>(covmat_file).write(FastPCA::Matrix<double>(s));
           }
           if (eigenval_file_given) {
-            verbose && std::cout << "solving eigensystem/writing eigenvalues matrix" << std::endl;
+            verbose && std::cerr << "solving eigensystem/writing eigenvalues matrix" << std::endl;
             std::string eigenval_file = args["val"].as<std::string>();
             FastPCA::DataFileWriter<double>(eigenval_file).write(s.eigenvalues());
           }
           if (eigenvec_file_given) {
-            verbose && std::cout << "solving eigensystem/writing eigenvectors matrix" << std::endl;
+            verbose && std::cerr << "solving eigensystem/writing eigenvectors matrix" << std::endl;
             std::string eigenvec_file = args["vec"].as<std::string>();
             FastPCA::DataFileWriter<double>(eigenvec_file).write(s.eigenvectors());
           }
@@ -176,20 +179,25 @@ int main(int argc, char* argv[]) {
           vecs = s.eigenvectors();
         }
         if (periodic) {
-          verbose && std::cout << "computing projections for periodic data" << std::endl;
-          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation);
+          std::vector<double> dih_shifts;
+          if (dih_shift) {
+            verbose && std::cerr << "computing optimal shifts for dihedrals" << std::endl;
+            dih_shifts = FastPCA::Periodic::dih_shifts(file_input, mem_buf_size);
+          }
+          verbose && std::cerr << "computing projections for periodic data" << std::endl;
+          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation, dih_shifts);
         } else {
-          verbose && std::cout << "computing projections" << std::endl;
+          verbose && std::cerr << "computing projections" << std::endl;
           FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation);
         }
       }
     } else {
-      std::cout << "please specify at least one output file!" << std::endl;
-      std::cout << desc << std::endl;
+      std::cerr << "please specify at least one output file!" << std::endl;
+      std::cerr << desc << std::endl;
       return EXIT_FAILURE;
     }
   } else {
-    std::cout << desc << std::endl;
+    std::cerr << desc << std::endl;
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

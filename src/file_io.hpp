@@ -102,7 +102,6 @@ namespace FastPCA {
     FileType _ftype;
     std::size_t _n_cols;
     bool _eof;
-    //std::ifstream _fh;
     LTS::AsciiParser<T> _parser;
     std::shared_ptr<XDRFILE> _fh_xtc;
   };
@@ -143,7 +142,8 @@ namespace FastPCA {
                                const std::string file_out,
                                Matrix<double> eigenvecs,
                                std::size_t mem_buf_size,
-                               bool use_correlation);
+                               bool use_correlation,
+                               std::vector<double> dih_shifts);
   } // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA

@@ -100,6 +100,14 @@ namespace FastPCA {
     sigmas(const std::string filename
          , const std::size_t max_chunk_size
          , std::vector<double> means);
+
+    /**
+     * compute optimal shifts for dihedrals to
+     * move low-sampled barrier to periodic boundary
+     */
+    std::vector<double>
+    dih_shifts(const std::string filename
+             , const std::size_t max_chunk_size);
   } // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA

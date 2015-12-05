@@ -163,6 +163,29 @@ namespace FastPCA {
          , std::vector<double> means) {
       return _sigmas(filename, max_chunk_size, means, true);
     }
+
+    std::vector<double>
+    dih_shifts(const std::string filename
+             , const std::size_t max_chunk_size) {
+      // helper function to accumulate block data
+      // TODO: put outside and reuse in other functions
+      auto blockwise = [&filename, &max_chunk_size] (DataFileReader<double> ifile, std::function<void(Matrix<double>)> acc) {
+        Matrix<double> m = std::move(ifile.next_block());
+        while (m.n_rows() > 0) {
+          acc(m);
+          m = std::move(ifile.next_block());
+        }
+      };
+      DataFileReader<double> input_file(filename, max_chunk_size);
+      std::size_t n_cols = input_file.n_cols();
+
+
+      //TODO histogram for first guess
+      
+      //TODO newton minimization
+
+      return {};
+    }
   } // end namespace FastPCA::Periodic
 } // end namespace FastPCA
 
