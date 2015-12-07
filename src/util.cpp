@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "file_io.hpp"
 
 #include <string>
+#include <algorithm>
 
 namespace FastPCA {
 
@@ -168,21 +169,65 @@ namespace FastPCA {
     dih_shifts(const std::string filename
              , const std::size_t max_chunk_size) {
       // helper function to accumulate block data
-      // TODO: put outside and reuse in other functions
-      auto blockwise = [&filename, &max_chunk_size] (DataFileReader<double> ifile, std::function<void(Matrix<double>)> acc) {
+      auto blockwise = [] (DataFileReader<double>& ifile
+                         , std::function<void(Matrix<double>)> acc) {
         Matrix<double> m = std::move(ifile.next_block());
         while (m.n_rows() > 0) {
           acc(m);
           m = std::move(ifile.next_block());
         }
       };
-      DataFileReader<double> input_file(filename, max_chunk_size);
-      std::size_t n_cols = input_file.n_cols();
+      // get number of columns from file
+      std::size_t n_cols;
+      {
+        DataFileReader<double> input_file(filename, max_chunk_size);
+        n_cols = input_file.n_cols();
+      }
+      // histogram for first guess (72 bins of 5 degrees width, [-180, 180])
+      const std::size_t n_bins = 72;
+      const float binwidth = 5.0;
+      std::vector<std::vector<unsigned int>> hists(n_cols, std::vector<unsigned int>(n_bins));
+      // compute histograms
+      {
+        DataFileReader<double> input_file(filename, max_chunk_size);
+        blockwise(input_file
+                , [&hists](Matrix<double> m) {
+          for (std::size_t i=0; i < m.n_rows(); ++i) {
+            for (std::size_t j=0; j < m.n_cols(); ++j) {
+              for (std::size_t i_bin=0; i_bin < n_bins; ++i_bin) {
+                if (m(i,j) <= -180.0f + (i_bin+1)*binwidth) {
+                  ++hists[j][i_bin];
+                  break;
+                }
+              }
+            }
+          }
+        });
+      }
+      // compute min-shift candidates from histograms
+      std::vector<std::vector<float>> candidates(n_cols);
+      for (std::size_t j=0; j < n_cols; ++j) {
+        // 5 smallest bins
+        std::vector<std::size_t> min_bins(5, 0);
+        for (std::size_t i_bin=1; i_bin < n_bins; ++i_bin) {
+          for (std::size_t k=0; k < 5; ++k) {
+            if (hists[j][i_bin] < hists[j][min_bins[k]]) {
+              min_bins[k] = i_bin;
+              break;
+            }
+          }
+        }
+        // compute degree values of candidates
+        for (std::size_t i_bin=0; i_bin < 5; ++i_bin) {
+          for (std::size_t k=0; k < 5+1; ++k) {
+            candidates[j].push_back(i_bin*binwidth + k);
+          }
+        }
+      }
+      //TODO minimization
 
 
-      //TODO histogram for first guess
-      
-      //TODO newton minimization
+
 
       return {};
     }
