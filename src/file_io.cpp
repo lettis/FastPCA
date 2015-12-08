@@ -28,7 +28,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstdlib>
 #include <set>
 
-#define PI (3.14159265358979323846264338327950288)
+//TODO remove, use system implementation
+//#define PI (3.14159265358979323846264338327950288)
 
 #include "file_io.hpp"
 #include "covariance.hpp"
@@ -110,10 +111,13 @@ namespace FastPCA {
                           std::size_t mem_buf_size,
                           bool use_correlation,
                           std::vector<double> dih_shifts) {
+      bool use_dih_shifts = (dih_shifts.size() > 0);
       mem_buf_size /= 4;
       std::vector<double> means;
       std::vector<double> sigmas;
-      std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
+      if ( (! use_dih_shifts) || use_correlation) {
+        std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
+      }
       if (use_correlation) {
         sigmas = FastPCA::Periodic::sigmas(file_in, mem_buf_size, means);
         for (double& s: sigmas) {
@@ -122,17 +126,22 @@ namespace FastPCA {
       }
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
+      //TODO debug
+      DataFileWriter<double> fh_dih_shift_out("zzz_dih_shifted.dat");
       bool append_to_file = false;
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = fh_file_in.next_block();
         if (m.n_rows() > 0) {
-          if (dih_shifts.size() == 0) {
+          if (use_dih_shifts) {
+            // dih shifts: shift minima of dihedral regions to periodic barrier
+            FastPCA::deg2rad_inplace(m);
+            FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
+            //TODO debug
+            fh_dih_shift_out.write(m, append_to_file);
+          } else {
             // default behaviour: shift by periodic means
             FastPCA::deg2rad_inplace(m);
             FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-          } else {
-            std::cerr << "shifting by dih-barriers is not yet implemented!" << std::endl;
-            exit(EXIT_FAILURE);
           }
           if (use_correlation) {
             FastPCA::scale_matrix_columns_inplace(m, sigmas);

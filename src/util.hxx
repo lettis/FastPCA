@@ -53,6 +53,14 @@ namespace FastPCA {
   deg2rad_inplace(Matrix<T>& m) {
     _elementwise_mult(m, M_PI / 180.0);
   }
+
+  template <class T>
+  void
+  deg2rad_inplace(std::vector<T>& v) {
+    for (std::size_t i=0; i < v.size(); ++i) {
+      v[i] *= M_PI / 180.0;
+    }
+  }
   
   template <class T>
   void

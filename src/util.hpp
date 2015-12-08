@@ -50,6 +50,10 @@ namespace FastPCA {
 
   template <class T>
   void
+  deg2rad_inplace(std::vector<T>& v);
+
+  template <class T>
+  void
   rad2deg_inplace(Matrix<T>& m);
 
   template <class T>

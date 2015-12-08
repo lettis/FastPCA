@@ -67,6 +67,43 @@ namespace FastPCA {
       }
       return sigmas;
     }
+
+    // helper function to accumulate block data
+    void
+    _blockwise(DataFileReader<double>& ifile
+             , std::function<void(Matrix<double>)> acc) {
+      Matrix<double> m = std::move(ifile.next_block());
+      while (m.n_rows() > 0) {
+        acc(m);
+        m = std::move(ifile.next_block());
+      }
+    };
+
+    double
+    _periodic_shift_to_barrier_deg(double theta, double shift) {
+      theta -= (shift + 180.0);
+      if (theta < -180.0) {
+        return theta + 360.0;
+      } else if (theta > 180.0) {
+        return theta - 360.0;
+      } else {
+        return theta;
+      }
+    }
+
+    unsigned int
+    _count_jumps_deg(Matrix<double> m, std::size_t i_col, double shift) {
+      unsigned int sum = 0;
+      for (std::size_t i=0; i < m.n_rows()-1; ++i) {
+        double theta1 = _periodic_shift_to_barrier_deg(m(i,i_col), shift);
+        double theta2 = _periodic_shift_to_barrier_deg(m(i+1,i_col), shift);
+        if (std::abs(theta1 - theta2) > 180.0) {
+          ++sum;
+        }
+      }
+      return sum;
+    }
+
   } // end local namespace
 
 
@@ -168,15 +205,6 @@ namespace FastPCA {
     std::vector<double>
     dih_shifts(const std::string filename
              , const std::size_t max_chunk_size) {
-      // helper function to accumulate block data
-      auto blockwise = [] (DataFileReader<double>& ifile
-                         , std::function<void(Matrix<double>)> acc) {
-        Matrix<double> m = std::move(ifile.next_block());
-        while (m.n_rows() > 0) {
-          acc(m);
-          m = std::move(ifile.next_block());
-        }
-      };
       // get number of columns from file
       std::size_t n_cols;
       {
@@ -190,8 +218,8 @@ namespace FastPCA {
       // compute histograms
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
-        blockwise(input_file
-                , [&hists](Matrix<double> m) {
+        _blockwise(input_file
+                 , [&hists,binwidth](Matrix<double> m) {
           for (std::size_t i=0; i < m.n_rows(); ++i) {
             for (std::size_t j=0; j < m.n_cols(); ++j) {
               for (std::size_t i_bin=0; i_bin < n_bins; ++i_bin) {
@@ -224,12 +252,41 @@ namespace FastPCA {
           }
         }
       }
-      //TODO minimization
-
-
-
-
-      return {};
+      // compute ranking for different shifts
+      std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>());
+      {
+        DataFileReader<double> input_file(filename, max_chunk_size);
+        _blockwise(input_file
+                 , [&n_jumps,&candidates,n_cols] (Matrix<double> m) {
+          for (std::size_t j=0; j < n_cols; ++j) {
+            for (double c: candidates[j]) {
+              n_jumps[j].push_back(_count_jumps_deg(m, j, c));
+            }
+          }
+        });
+      }
+      // shifts: minimal jumps win
+      std::vector<double> shifts(n_cols);
+      for (std::size_t j=0; j < n_cols; ++j) {
+        unsigned int jumps_min = n_jumps[j][0];
+        std::size_t i_min = 0;
+        for (std::size_t i=1; i < n_jumps[j].size(); ++i) {
+          if (n_jumps[j][i] < jumps_min) {
+            i_min = i;
+            jumps_min = n_jumps[j][i];
+          }
+        }
+        shifts[j] = candidates[j][i_min];
+      }
+      // shift not to center, but to barrier
+      for (double& s: shifts) {
+        s += 180.0;
+        if (s > 180.0) {
+          s -= 360.0;
+        }
+      }
+      deg2rad_inplace(shifts);
+      return shifts;
     }
   } // end namespace FastPCA::Periodic
 } // end namespace FastPCA
