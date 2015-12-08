@@ -204,7 +204,8 @@ namespace FastPCA {
 
     std::vector<double>
     dih_shifts(const std::string filename
-             , const std::size_t max_chunk_size) {
+             , std::size_t max_chunk_size) {
+      max_chunk_size /= 2;
       // get number of columns from file
       std::size_t n_cols;
       {

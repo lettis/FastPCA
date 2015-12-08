@@ -111,7 +111,7 @@ namespace FastPCA {
      */
     std::vector<double>
     dih_shifts(const std::string filename
-             , const std::size_t max_chunk_size);
+             , std::size_t max_chunk_size);
   } // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA
