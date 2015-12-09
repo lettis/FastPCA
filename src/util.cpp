@@ -71,7 +71,7 @@ namespace FastPCA {
     // helper function to accumulate block data
     void
     _blockwise(DataFileReader<double>& ifile
-             , std::function<void(Matrix<double>)> acc) {
+             , std::function<void(Matrix<double>&)> acc) {
       Matrix<double> m = std::move(ifile.next_block());
       while (m.n_rows() > 0) {
         acc(m);
@@ -220,7 +220,7 @@ namespace FastPCA {
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
         _blockwise(input_file
-                 , [&hists,binwidth](Matrix<double> m) {
+                 , [&hists,binwidth](Matrix<double>& m) {
           std::size_t i, j, i_bin;
           std::size_t n_rows = m.n_rows();
           std::size_t n_cols = m.n_cols();
@@ -265,7 +265,7 @@ namespace FastPCA {
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
         _blockwise(input_file
-                 , [&n_jumps,&candidates,n_cols] (Matrix<double> m) {
+                 , [&n_jumps,&candidates,n_cols] (Matrix<double>& m) {
           std::size_t j;
           std::size_t ic;
           #pragma omp parallel for default(none)\
