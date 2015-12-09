@@ -92,7 +92,7 @@ namespace FastPCA {
     }
 
     unsigned int
-    _count_jumps_deg(Matrix<double> m, std::size_t i_col, double shift) {
+    _count_jumps_deg(const Matrix<double>& m, std::size_t i_col, double shift) {
       unsigned int sum = 0;
       for (std::size_t i=0; i < m.n_rows()-1; ++i) {
         double theta1 = _periodic_shift_to_barrier_deg(m(i,i_col), shift);
