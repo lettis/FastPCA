@@ -221,9 +221,16 @@ namespace FastPCA {
         DataFileReader<double> input_file(filename, max_chunk_size);
         _blockwise(input_file
                  , [&hists,binwidth](Matrix<double> m) {
-          for (std::size_t i=0; i < m.n_rows(); ++i) {
-            for (std::size_t j=0; j < m.n_cols(); ++j) {
-              for (std::size_t i_bin=0; i_bin < n_bins; ++i_bin) {
+          std::size_t i, j, i_bin;
+          std::size_t n_rows = m.n_rows();
+          std::size_t n_cols = m.n_cols();
+          #pragma omp parallel for default(none)\
+                                   private(j,i,i_bin)\
+                                   firstprivate(n_cols,n_rows,n_bins,binwidth)\
+                                   shared(hists,m)
+          for (j=0; j < m.n_cols(); ++j) {
+            for (i=0; i < m.n_rows(); ++i) {
+              for (i_bin=0; i_bin < n_bins; ++i_bin) {
                 if (m(i,j) <= -180.0f + (i_bin+1)*binwidth) {
                   ++hists[j][i_bin];
                   break;
@@ -259,9 +266,15 @@ namespace FastPCA {
         DataFileReader<double> input_file(filename, max_chunk_size);
         _blockwise(input_file
                  , [&n_jumps,&candidates,n_cols] (Matrix<double> m) {
-          for (std::size_t j=0; j < n_cols; ++j) {
-            for (double c: candidates[j]) {
-              n_jumps[j].push_back(_count_jumps_deg(m, j, c));
+          std::size_t j;
+          std::size_t ic;
+          #pragma omp parallel for default(none)\
+                                   private(j,ic)\
+                                   firstprivate(n_cols)\
+                                   shared(m,candidates,n_jumps)
+          for (j=0; j < n_cols; ++j) {
+            for (ic=0; ic < candidates[j].size(); ++ic) {
+              n_jumps[j].push_back(_count_jumps_deg(m, j, candidates[j][ic]));
             }
           }
         });
