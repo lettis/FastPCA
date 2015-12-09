@@ -145,11 +145,7 @@ namespace FastPCA {
         for (i=0; i < n_rows; ++i) {
           m(i,j) = m(i,j) - shifts[j];
           // periodic boundary checks
-          if (m(i,j) < -M_PI) {
-            m(i,j) = m(i,j) + 2*M_PI;
-          } else if (m(i,j) > M_PI) {
-            m(i,j) = m(i,j) - 2*M_PI;
-          }
+          m(i,j) = atan2(sin(m(i,j)), cos(m(i,j)));
         }
       }
     }

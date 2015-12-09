@@ -28,9 +28,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <cstdlib>
 #include <set>
 
-//TODO remove, use system implementation
-//#define PI (3.14159265358979323846264338327950288)
-
 #include "file_io.hpp"
 #include "covariance.hpp"
 
@@ -127,7 +124,7 @@ namespace FastPCA {
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
       //TODO debug
-      DataFileWriter<double> fh_dih_shift_out("zzz_dih_shifted.dat");
+      //DataFileWriter<double> fh_dih_shift_out("zzz_dih_shifted.dat");
       bool append_to_file = false;
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = fh_file_in.next_block();
@@ -137,7 +134,7 @@ namespace FastPCA {
             FastPCA::deg2rad_inplace(m);
             FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
             //TODO debug
-            fh_dih_shift_out.write(m, append_to_file);
+            //fh_dih_shift_out.write(m, append_to_file);
           } else {
             // default behaviour: shift by periodic means
             FastPCA::deg2rad_inplace(m);
