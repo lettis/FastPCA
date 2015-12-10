@@ -107,7 +107,7 @@ namespace FastPCA {
                           Matrix<double> eigenvecs,
                           std::size_t mem_buf_size,
                           bool use_correlation,
-                          std::vector<double> dih_shifts) {
+                          bool use_dih_shifts) {
       bool use_dih_shifts = (dih_shifts.size() > 0);
       mem_buf_size /= 4;
       std::vector<double> means;
@@ -123,18 +123,30 @@ namespace FastPCA {
       }
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
-      //TODO debug
-      //DataFileWriter<double> fh_dih_shift_out("zzz_dih_shifted.dat");
       bool append_to_file = false;
       while ( ! fh_file_in.eof()) {
         Matrix<double> m = fh_file_in.next_block();
         if (m.n_rows() > 0) {
+//TODO: dih-shifts for correlated data
+//        1. compute shifts for correlated data
+//        2. shift by means
+//        3. rescale
+//        4. shift by dih-shifts
           if (use_dih_shifts) {
+
+//            verbose && std::cerr << "computing optimal shifts for dihedrals" << std::endl;
+//            dih_shifts = FastPCA::Periodic::dih_shifts(file_input, mem_buf_size);
+//            if (verbose) {
+//              std::cout << "dih shifts:" << std::endl;
+//              for(auto s: dih_shifts) {
+//                std::cout << " " << s;
+//              }
+//              std::cout << std::endl;
+//            }
+
             // dih shifts: shift minima of dihedral regions to periodic barrier
             FastPCA::deg2rad_inplace(m);
             FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
-            //TODO debug
-            //fh_dih_shift_out.write(m, append_to_file);
           } else {
             // default behaviour: shift by periodic means
             FastPCA::deg2rad_inplace(m);

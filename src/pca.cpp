@@ -180,19 +180,8 @@ int main(int argc, char* argv[]) {
         }
         if (periodic) {
           std::vector<double> dih_shifts;
-          if (dih_shift) {
-            verbose && std::cerr << "computing optimal shifts for dihedrals" << std::endl;
-            dih_shifts = FastPCA::Periodic::dih_shifts(file_input, mem_buf_size);
-            if (verbose) {
-              std::cout << "dih shifts:" << std::endl;
-              for(auto s: dih_shifts) {
-                std::cout << " " << s;
-              }
-              std::cout << std::endl;
-            }
-          }
           verbose && std::cerr << "computing projections for periodic data" << std::endl;
-          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation, dih_shifts);
+          FastPCA::Periodic::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation, dih_shift);
         } else {
           verbose && std::cerr << "computing projections" << std::endl;
           FastPCA::calculate_projections(file_input, projection_file, vecs, mem_buf_size, use_correlation);
