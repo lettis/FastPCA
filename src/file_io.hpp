@@ -137,13 +137,21 @@ namespace FastPCA {
                              std::size_t mem_buf_size,
                              bool use_correlation);
 
+  /**
+   * read input file blockwise and pass reference of current matrix
+   * to accumulator function.
+   */
+  void
+  read_blockwise(DataFileReader<double>& ifile
+               , std::function<void(Matrix<double>&)> acc);
+
   namespace Periodic {
     void calculate_projections(const std::string file_in,
                                const std::string file_out,
                                Matrix<double> eigenvecs,
                                std::size_t mem_buf_size,
                                bool use_correlation,
-                               std::vector<double> dih_shifts);
+                               bool use_dih_shifts);
   } // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA

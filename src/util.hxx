@@ -130,6 +130,12 @@ namespace FastPCA {
   }
 
   namespace Periodic {
+    tamplate <class T>
+    constexpr T
+    normalized(T var, T periodicity) {
+      return fmod(var + periodicity/2.0) - periodicity/2.0;
+    }
+
     template <class T>
     void
     shift_matrix_columns_inplace(Matrix<T>& m
@@ -145,7 +151,9 @@ namespace FastPCA {
         for (i=0; i < n_rows; ++i) {
           m(i,j) = m(i,j) - shifts[j];
           // periodic boundary checks
-          m(i,j) = atan2(sin(m(i,j)), cos(m(i,j)));
+          // TODO: test and remove old code
+          //m(i,j) = atan2(sin(m(i,j)), cos(m(i,j)));
+          m(i,j) = normalized(m(i,j), 2*M_PI);
         }
       }
     }

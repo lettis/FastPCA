@@ -68,17 +68,6 @@ namespace FastPCA {
       return sigmas;
     }
 
-    // helper function to accumulate block data
-    void
-    _blockwise(DataFileReader<double>& ifile
-             , std::function<void(Matrix<double>&)> acc) {
-      Matrix<double> m = std::move(ifile.next_block());
-      while (m.n_rows() > 0) {
-        acc(m);
-        m = std::move(ifile.next_block());
-      }
-    };
-
     double
     _periodic_shift_to_barrier_deg(double theta, double shift) {
       theta -= (shift + 180.0);
@@ -219,8 +208,8 @@ namespace FastPCA {
       // compute histograms
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
-        _blockwise(input_file
-                 , [&hists,binwidth](Matrix<double>& m) {
+        read_blockwise(input_file
+                     , [&hists,binwidth](Matrix<double>& m) {
           std::size_t i, j, i_bin;
           std::size_t n_rows = m.n_rows();
           std::size_t n_cols = m.n_cols();
@@ -264,8 +253,8 @@ namespace FastPCA {
       std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>());
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
-        _blockwise(input_file
-                 , [&n_jumps,&candidates,n_cols] (Matrix<double>& m) {
+        read_blockwise(input_file
+                     , [&n_jumps,&candidates,n_cols] (Matrix<double>& m) {
           std::size_t j;
           std::size_t ic;
           #pragma omp parallel for default(none)\

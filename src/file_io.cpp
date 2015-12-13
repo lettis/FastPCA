@@ -100,6 +100,16 @@ namespace FastPCA {
     }
   }
 
+  void
+  read_blockwise(DataFileReader<double>& ifile
+               , std::function<void(Matrix<double>&)> acc) {
+    Matrix<double> m = std::move(ifile.next_block());
+    while (m.n_rows() > 0) {
+      acc(m);
+      m = std::move(ifile.next_block());
+    }
+  }
+
   namespace Periodic {
     void
     calculate_projections(const std::string file_in,
@@ -108,7 +118,6 @@ namespace FastPCA {
                           std::size_t mem_buf_size,
                           bool use_correlation,
                           bool use_dih_shifts) {
-      bool use_dih_shifts = (dih_shifts.size() > 0);
       mem_buf_size /= 4;
       std::vector<double> means;
       std::vector<double> sigmas;
@@ -121,19 +130,21 @@ namespace FastPCA {
           s = 1.0 / s;
         }
       }
-      DataFileReader<double> fh_file_in(file_in, mem_buf_size);
-      DataFileWriter<double> fh_file_out(file_out);
-      bool append_to_file = false;
-      while ( ! fh_file_in.eof()) {
-        Matrix<double> m = fh_file_in.next_block();
-        if (m.n_rows() > 0) {
+
+
+
+
+
+
+//      DataFileReader<double> fh_file_in(file_in, mem_buf_size);
+//      DataFileWriter<double> fh_file_out(file_out);
+
 //TODO: dih-shifts for correlated data
 //        1. compute shifts for correlated data
 //        2. shift by means
 //        3. rescale
 //        4. shift by dih-shifts
-          if (use_dih_shifts) {
-
+// template: 
 //            verbose && std::cerr << "computing optimal shifts for dihedrals" << std::endl;
 //            dih_shifts = FastPCA::Periodic::dih_shifts(file_input, mem_buf_size);
 //            if (verbose) {
@@ -144,21 +155,32 @@ namespace FastPCA {
 //              std::cout << std::endl;
 //            }
 
-            // dih shifts: shift minima of dihedral regions to periodic barrier
-            FastPCA::deg2rad_inplace(m);
-            FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
-          } else {
-            // default behaviour: shift by periodic means
-            FastPCA::deg2rad_inplace(m);
-            FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-          }
-          if (use_correlation) {
-            FastPCA::scale_matrix_columns_inplace(m, sigmas);
-          }
-          fh_file_out.write(m*eigenvecs, append_to_file);
-          append_to_file = true;
-        }
-      }
+
+
+
+
+
+// TODO: remove old code: 
+//      bool append_to_file = false;
+//      while ( ! fh_file_in.eof()) {
+//        Matrix<double> m = fh_file_in.next_block();
+//        if (m.n_rows() > 0) {
+//          if (use_dih_shifts) {
+//            // dih shifts: shift minima of dihedral regions to periodic barrier
+//            FastPCA::deg2rad_inplace(m);
+//            FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
+//          } else {
+//            // default behaviour: shift by periodic means
+//            FastPCA::deg2rad_inplace(m);
+//            FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
+//          }
+//          if (use_correlation) {
+//            FastPCA::scale_matrix_columns_inplace(m, sigmas);
+//          }
+//          fh_file_out.write(m*eigenvecs, append_to_file);
+//          append_to_file = true;
+//        }
+//      }
     }
   } // end namespace FastPCA::Periodic
 

@@ -26,6 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #include "matrix.hpp"
+#include "file_io.hpp"
 
 #include <vector>
 #include <string>
@@ -74,6 +75,9 @@ namespace FastPCA {
   means(const std::string filename
       , const std::size_t max_chunk_size);
 
+  /**
+   * sigmas (i.e. standard deviations) of data set
+   */
   std::vector<double>
   sigmas(const std::string filename
        , const std::size_t max_chunk_size
@@ -85,6 +89,15 @@ namespace FastPCA {
      */
     double
     distance(double theta1, double theta2);
+
+    /**
+     * return corresponding number restricted to
+     * periodic interval inside boundaries of
+     * [-periodicity/2, +periodicity/2].
+     */
+    tamplate <class T>
+    constexpr T
+    normalized(T var, T periodicity);
 
     template <class T>
     void
