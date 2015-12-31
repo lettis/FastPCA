@@ -153,7 +153,6 @@ namespace FastPCA {
                                bool use_correlation,
                                bool use_dih_shifts);
   } // end namespace FastPCA::Periodic
-
 } // end namespace FastPCA
 
 // load template implementations

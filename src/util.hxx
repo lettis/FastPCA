@@ -130,32 +130,41 @@ namespace FastPCA {
   }
 
   namespace Periodic {
-    tamplate <class T>
+    template <class T>
     constexpr T
     normalized(T var, T periodicity) {
-      return fmod(var + periodicity/2.0) - periodicity/2.0;
+      return fmod(var+0.5*periodicity, periodicity) - 0.5*periodicity;
     }
 
     template <class T>
     void
     shift_matrix_columns_inplace(Matrix<T>& m
-                               , std::vector<T> shifts) {
+                               , std::vector<T> shifts
+                               , std::vector<T> periodicities) {
       std::size_t i,j;
       const std::size_t n_rows = m.n_rows();
       const std::size_t n_cols = m.n_cols();
       #pragma omp parallel for default(none)\
                                private(i,j)\
                                firstprivate(n_rows,n_cols)\
-                               shared(m,shifts)
+                               shared(m,shifts, periodicities)
       for (j=0; j < n_cols; ++j) {
         for (i=0; i < n_rows; ++i) {
           m(i,j) = m(i,j) - shifts[j];
           // periodic boundary checks
           // TODO: test and remove old code
           //m(i,j) = atan2(sin(m(i,j)), cos(m(i,j)));
-          m(i,j) = normalized(m(i,j), 2*M_PI);
+          m(i,j) = normalized(m(i,j), periodicities[j]);
         }
       }
+    }
+
+    template <class T>
+    void
+    shift_matrix_columns_inplace(Matrix<T>& m
+                               , std::vector<T> shifts) {
+      std::vector<T> p(shifts.size(), 2*M_PI);
+      shift_matrix_columns_inplace(m, shifts, p);
     }
   } // FastPCA::Periodic
 

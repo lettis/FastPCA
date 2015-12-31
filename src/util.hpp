@@ -26,6 +26,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #include "matrix.hpp"
+
+// resolve circular dependency
+// (used in file_io)
+namespace FastPCA {
+  constexpr std::size_t
+  gigabytes_to_bytes(std::size_t gb) {
+    return gb * 1073741824;
+  }
+}
+
 #include "file_io.hpp"
 
 #include <vector>
@@ -33,11 +43,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace FastPCA {
 
-  constexpr std::size_t
-  gigabytes_to_bytes(std::size_t gb) {
-    return gb * 1073741824;
-  }
-  
   bool
   is_comment_or_empty(std::string line);
   
@@ -95,9 +100,15 @@ namespace FastPCA {
      * periodic interval inside boundaries of
      * [-periodicity/2, +periodicity/2].
      */
-    tamplate <class T>
+    template <class T>
     constexpr T
     normalized(T var, T periodicity);
+
+    template <class T>
+    void
+    shift_matrix_columns_inplace(Matrix<T>& m
+                               , std::vector<T> shifts
+                               , std::vector<T> periodicities);
 
     template <class T>
     void
