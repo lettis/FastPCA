@@ -86,8 +86,15 @@ namespace FastPCA {
       for (std::size_t i=0; i < m.n_rows()-1; ++i) {
         double theta1 = _periodic_shift_to_barrier_deg(m(i,i_col), shift);
         double theta2 = _periodic_shift_to_barrier_deg(m(i+1,i_col), shift);
+//TODO debug
+if (i_col == 31) {
+ std::cout << shift << " " << m(i, 31) << " " << m(i+1, 31) << " " << theta1 << " " << theta2 << " ";
+}
         if (std::abs(theta1 - theta2) > 180.0) {
           ++sum;
+if (i_col == 31) std::cout << 1 << std::endl;
+        } else {
+if (i_col == 31) std::cout << 0 << std::endl;
         }
       }
       return sum;
@@ -243,11 +250,25 @@ namespace FastPCA {
           }
         }
         // compute degree values of candidates
-        for (std::size_t i_bin=0; i_bin < 5; ++i_bin) {
+        // candidates: 5 values for 5 bins = 25 values.
+        //   compute by: deg(bin), deg(bin)+1.0, deg(bin)+2.0, ..., deg(bin)+4.0
+        //   with deg(bin) degree value of bin (lower boundary).
+        for (std::size_t i_min_bin=0; i_min_bin < 5; ++i_min_bin) {
           for (std::size_t k=0; k < 5+1; ++k) {
-            candidates[j].push_back(i_bin*binwidth + k);
+            candidates[j].push_back(min_bins[i_min_bin]*binwidth + k);
           }
         }
+//TODO debug
+if (j==31) {
+  std::cerr << "min_bins: " << std::endl;
+  for (auto mb: min_bins) {
+    std::cerr << "  " << mb << std::endl;
+  }
+  std::cerr << std::endl << "candidates: " << std::endl;
+  for (auto mc: candidates[31]) {
+    std::cerr << "  " << mc << std::endl;
+  }
+}
       }
       // compute ranking for different shifts
       std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>());
@@ -281,6 +302,8 @@ namespace FastPCA {
         }
         shifts[j] = candidates[j][i_min];
       }
+//TODO debug
+std::cerr << "min shift (degrees): " << shifts[31] << std::endl;
       // shift not to center, but to barrier
       for (double& s: shifts) {
         s += 180.0;
@@ -288,6 +311,7 @@ namespace FastPCA {
           s -= 360.0;
         }
       }
+std::cerr << "min shift (degrees, corrected): " << shifts[31] << std::endl;
       deg2rad_inplace(shifts);
       return shifts;
     }
