@@ -101,7 +101,7 @@ namespace FastPCA {
      * [-periodicity/2, +periodicity/2].
      */
     template <class T>
-    constexpr T
+    T
     normalized(T var, T periodicity);
 
     template <class T>

@@ -137,11 +137,11 @@ namespace FastPCA {
 
   namespace Periodic {
     template <class T>
-    constexpr T
+    T
     normalized(T var, T periodicity) {
       T var1 = std::fmod(var, periodicity);
       T var2 = std::fmod(var, 2*periodicity);
-      return (var1 == var2) ? var1 : (var1 - sign(var2-var1) * periodicity);
+      return (var1 == var2) ? var1 : (var1 - _sign(var2-var1) * periodicity);
     }
 
     template <class T>
