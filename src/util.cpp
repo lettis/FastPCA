@@ -263,16 +263,16 @@ namespace FastPCA {
           }
         }
 //TODO debug
-if (j==31) {
-  std::cerr << "min_bins: " << std::endl;
-  for (auto mb: min_bins) {
-    std::cerr << "  " << mb << std::endl;
-  }
-  std::cerr << std::endl << "candidates: " << std::endl;
-  for (auto mc: candidates[31]) {
-    std::cerr << "  " << mc << std::endl;
-  }
-}
+//if (j==31) {
+//  std::cerr << "min_bins: " << std::endl;
+//  for (auto mb: min_bins) {
+//    std::cerr << "  " << mb << std::endl;
+//  }
+//  std::cerr << std::endl << "candidates: " << std::endl;
+//  for (auto mc: candidates[31]) {
+//    std::cerr << "  " << mc << std::endl;
+//  }
+//}
       }
       // compute ranking for different shifts
       std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>(n_candidates_per_col));
@@ -293,8 +293,8 @@ if (j==31) {
           }
         });
       }
-std::cerr << "n_jumps[31].size()" << n_jumps[31].size() << std::endl;
-std::cerr << "candidate, n_jumps: " << std::endl;
+//std::cerr << "n_jumps[31].size()" << n_jumps[31].size() << std::endl;
+//std::cerr << "candidate, n_jumps: " << std::endl;
       // shifts: minimal jumps win
       std::vector<double> shifts(n_cols);
       for (std::size_t j=0; j < n_cols; ++j) {
@@ -302,9 +302,9 @@ std::cerr << "candidate, n_jumps: " << std::endl;
         std::size_t i_min = 0;
         for (std::size_t i=1; i < n_candidates_per_col; ++i) {
 //TODO debug
-if (j==31) {
-  std::cerr << candidates[j][i] << "  " << n_jumps[j][i] << std::endl;
-}
+//if (j==31) {
+//  std::cerr << candidates[j][i] << "  " << n_jumps[j][i] << std::endl;
+//}
           if (n_jumps[j][i] < jumps_min) {
             i_min = i;
             jumps_min = n_jumps[j][i];
@@ -313,7 +313,7 @@ if (j==31) {
         shifts[j] = candidates[j][i_min];
       }
 //TODO debug
-std::cerr << std::endl << "min shift (degrees): " << shifts[31] << std::endl;
+//std::cerr << std::endl << "min shift (degrees): " << shifts[31] << std::endl;
       // shift not to center, but to barrier
       for (double& s: shifts) {
         s += 180.0;
@@ -321,12 +321,12 @@ std::cerr << std::endl << "min shift (degrees): " << shifts[31] << std::endl;
           s -= 360.0;
         }
       }
-std::cerr << "min shift (degrees, corrected): " << shifts[31] << std::endl;
-std::cerr << std::endl << "all shifts in deg: " << std::endl;
-for(auto s: shifts) std::cerr << "  " << s << std::endl;
+//std::cerr << "min shift (degrees, corrected): " << shifts[31] << std::endl;
+//std::cerr << std::endl << "all shifts in deg: " << std::endl;
+//for(auto s: shifts) std::cerr << "  " << s << std::endl;
       deg2rad_inplace(shifts);
-std::cerr << std::endl << "all shifts in rad: " << std::endl;
-for(auto s: shifts) std::cerr << "  " << s << std::endl;
+//std::cerr << std::endl << "all shifts in rad: " << std::endl;
+//for(auto s: shifts) std::cerr << "  " << s << std::endl;
       return shifts;
     }
   } // end namespace FastPCA::Periodic
