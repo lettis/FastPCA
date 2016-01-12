@@ -87,14 +87,14 @@ namespace FastPCA {
         double theta1 = _periodic_shift_to_barrier_deg(m(i,i_col), shift);
         double theta2 = _periodic_shift_to_barrier_deg(m(i+1,i_col), shift);
 //TODO debug
-if (i_col == 31) {
- std::cout << shift << " " << m(i, 31) << " " << m(i+1, 31) << " " << theta1 << " " << theta2 << " ";
-}
+//if (i_col == 31) {
+// std::cout << shift << " " << m(i, 31) << " " << m(i+1, 31) << " " << theta1 << " " << theta2 << " ";
+//}
         if (std::abs(theta1 - theta2) > 180.0) {
           ++sum;
-if (i_col == 31) std::cout << 1 << std::endl;
+//if (i_col == 31) std::cout << 1 << std::endl;
         } else {
-if (i_col == 31) std::cout << 0 << std::endl;
+//if (i_col == 31) std::cout << 0 << std::endl;
         }
       }
       return sum;
@@ -237,12 +237,15 @@ if (i_col == 31) std::cout << 0 << std::endl;
         });
       }
       // compute min-shift candidates from histograms
-      std::vector<std::vector<float>> candidates(n_cols);
+      const int n_min_bins = 5;
+      const int n_values_per_bin = 5;
+      const int n_candidates_per_col = n_min_bins * n_values_per_bin;
+      std::vector<std::vector<float>> candidates(n_cols, std::vector<float>(n_candidates_per_col));
       for (std::size_t j=0; j < n_cols; ++j) {
         // 5 smallest bins
         std::vector<std::size_t> min_bins(5, 0);
         for (std::size_t i_bin=1; i_bin < n_bins; ++i_bin) {
-          for (std::size_t k=0; k < 5; ++k) {
+          for (std::size_t k=0; k < n_min_bins; ++k) {
             if (hists[j][i_bin] < hists[j][min_bins[k]]) {
               min_bins[k] = i_bin;
               break;
@@ -253,9 +256,10 @@ if (i_col == 31) std::cout << 0 << std::endl;
         // candidates: 5 values for 5 bins = 25 values.
         //   compute by: deg(bin), deg(bin)+1.0, deg(bin)+2.0, ..., deg(bin)+4.0
         //   with deg(bin) degree value of bin (lower boundary).
-        for (std::size_t i_min_bin=0; i_min_bin < 5; ++i_min_bin) {
-          for (std::size_t k=0; k < 5+1; ++k) {
-            candidates[j].push_back(min_bins[i_min_bin]*binwidth + k);
+        for (std::size_t i_min_bin=0; i_min_bin < n_min_bins; ++i_min_bin) {
+          for (std::size_t k=0; k < n_values_per_bin; ++k) {
+            //TODO test negative candidates
+            candidates[j][i_min_bin*n_min_bins + k] = min_bins[i_min_bin]*binwidth + k -180.0f;
           }
         }
 //TODO debug
@@ -271,30 +275,36 @@ if (j==31) {
 }
       }
       // compute ranking for different shifts
-      std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>());
+      std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>(n_candidates_per_col));
       {
         DataFileReader<double> input_file(filename, max_chunk_size);
         read_blockwise(input_file
-                     , [&n_jumps,&candidates,n_cols] (Matrix<double>& m) {
+                     , [&n_jumps,&candidates,n_cols,n_candidates_per_col] (Matrix<double>& m) {
           std::size_t j;
           std::size_t ic;
           #pragma omp parallel for default(none)\
                                    private(j,ic)\
-                                   firstprivate(n_cols)\
+                                   firstprivate(n_cols,n_candidates_per_col)\
                                    shared(m,candidates,n_jumps)
           for (j=0; j < n_cols; ++j) {
-            for (ic=0; ic < candidates[j].size(); ++ic) {
-              n_jumps[j].push_back(_count_jumps_deg(m, j, candidates[j][ic]));
+            for (ic=0; ic < n_candidates_per_col; ++ic) {
+              n_jumps[j][ic] = _count_jumps_deg(m, j, candidates[j][ic]);
             }
           }
         });
       }
+std::cerr << "n_jumps[31].size()" << n_jumps[31].size() << std::endl;
+std::cerr << "candidate, n_jumps: " << std::endl;
       // shifts: minimal jumps win
       std::vector<double> shifts(n_cols);
       for (std::size_t j=0; j < n_cols; ++j) {
         unsigned int jumps_min = n_jumps[j][0];
         std::size_t i_min = 0;
-        for (std::size_t i=1; i < n_jumps[j].size(); ++i) {
+        for (std::size_t i=1; i < n_candidates_per_col; ++i) {
+//TODO debug
+if (j==31) {
+  std::cerr << candidates[j][i] << "  " << n_jumps[j][i] << std::endl;
+}
           if (n_jumps[j][i] < jumps_min) {
             i_min = i;
             jumps_min = n_jumps[j][i];
@@ -303,7 +313,7 @@ if (j==31) {
         shifts[j] = candidates[j][i_min];
       }
 //TODO debug
-std::cerr << "min shift (degrees): " << shifts[31] << std::endl;
+std::cerr << std::endl << "min shift (degrees): " << shifts[31] << std::endl;
       // shift not to center, but to barrier
       for (double& s: shifts) {
         s += 180.0;
@@ -312,7 +322,11 @@ std::cerr << "min shift (degrees): " << shifts[31] << std::endl;
         }
       }
 std::cerr << "min shift (degrees, corrected): " << shifts[31] << std::endl;
+std::cerr << std::endl << "all shifts in deg: " << std::endl;
+for(auto s: shifts) std::cerr << "  " << s << std::endl;
       deg2rad_inplace(shifts);
+std::cerr << std::endl << "all shifts in rad: " << std::endl;
+for(auto s: shifts) std::cerr << "  " << s << std::endl;
       return shifts;
     }
   } // end namespace FastPCA::Periodic

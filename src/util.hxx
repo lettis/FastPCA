@@ -133,6 +133,7 @@ namespace FastPCA {
     template <class T>
     constexpr T
     normalized(T var, T periodicity) {
+//TODO: this seems not to work
       return fmod(var+0.5*periodicity, periodicity) - 0.5*periodicity;
     }
 
