@@ -46,6 +46,12 @@ namespace FastPCA {
         }
       }
     }
+
+    template <class T>
+    T
+    _sign(T v) {
+      return (v < 0) ? -1.0 : 1.0;
+    }
   } // end local namespace
   
   template <class T>
@@ -133,8 +139,9 @@ namespace FastPCA {
     template <class T>
     constexpr T
     normalized(T var, T periodicity) {
-//TODO: this seems not to work
-      return fmod(var+0.5*periodicity, periodicity) - 0.5*periodicity;
+      T var1 = std::fmod(var, periodicity);
+      T var2 = std::fmod(var, 2*periodicity);
+      return (var1 == var2) ? var1 : (var1 - sign(var2-var1) * periodicity);
     }
 
     template <class T>
