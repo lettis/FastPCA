@@ -139,7 +139,8 @@ namespace FastPCA {
     template <class T>
     T
     normalized(T var, T periodicity) {
-      T var1 = std::fmod(var, periodicity);
+      periodicity *= 0.5;
+      T var1 = std::fmod(var,   periodicity);
       T var2 = std::fmod(var, 2*periodicity);
       return (var1 == var2) ? var1 : (var1 - _sign(var2-var1) * periodicity);
     }
@@ -160,9 +161,7 @@ namespace FastPCA {
         for (i=0; i < n_rows; ++i) {
           m(i,j) = m(i,j) - shifts[j];
           // periodic boundary checks
-          // TODO: test and remove old code
-          //m(i,j) = atan2(sin(m(i,j)), cos(m(i,j)));
-          m(i,j) = normalized(m(i,j), periodicities[j]);
+          m(i,j) = FastPCA::Periodic::normalized(m(i,j), periodicities[j]);
         }
       }
     }
@@ -172,7 +171,7 @@ namespace FastPCA {
     shift_matrix_columns_inplace(Matrix<T>& m
                                , std::vector<T> shifts) {
       std::vector<T> p(shifts.size(), 2*M_PI);
-      shift_matrix_columns_inplace(m, shifts, p);
+      FastPCA::Periodic::shift_matrix_columns_inplace(m, shifts, p);
     }
   } // FastPCA::Periodic
 

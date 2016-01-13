@@ -147,37 +147,24 @@ namespace FastPCA {
         }
       }
       // projections
-
-//TODO debug
-DataFileWriter<double> fh_orig("dih_orig");
-DataFileWriter<double> fh_orig_scaled("dih_orig_scaled");
-DataFileWriter<double> fh_cov_shift("dih_cov_shift");
-DataFileWriter<double> fh_corr_shift("dih_corr_shift");
-DataFileWriter<double> fh_mean_shift("dih_mean_shift");
-
       bool append_to_file = false;
       DataFileReader<double> fh_file_in(file_in, mem_buf_size);
       DataFileWriter<double> fh_file_out(file_out);
       read_blockwise(fh_file_in, [&](Matrix<double>& m) {
         // convert degrees to radians
         FastPCA::deg2rad_inplace(m);
-fh_orig.write(m, append_to_file);
         if (use_correlation || (! use_dih_shifts)) {
           // shift by periodic means
           FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-fh_mean_shift.write(m, append_to_file);
         } else if (use_dih_shifts) {
           // shift by optimal dih-shifts
           FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
-fh_cov_shift.write(m, append_to_file);
         }
         if (use_correlation) {
           // scale data by sigmas for correlated projections
           FastPCA::scale_matrix_columns_inplace(m, sigmas);
-fh_orig_scaled.write(m, append_to_file);
           if (use_dih_shifts) {
             FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts, scaled_periodicities);
-fh_corr_shift.write(m, append_to_file);
           }
         }
         // output

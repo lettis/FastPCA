@@ -86,15 +86,8 @@ namespace FastPCA {
       for (std::size_t i=0; i < m.n_rows()-1; ++i) {
         double theta1 = _periodic_shift_to_barrier_deg(m(i,i_col), shift);
         double theta2 = _periodic_shift_to_barrier_deg(m(i+1,i_col), shift);
-//TODO debug
-//if (i_col == 31) {
-// std::cout << shift << " " << m(i, 31) << " " << m(i+1, 31) << " " << theta1 << " " << theta2 << " ";
-//}
         if (std::abs(theta1 - theta2) > 180.0) {
           ++sum;
-//if (i_col == 31) std::cout << 1 << std::endl;
-        } else {
-//if (i_col == 31) std::cout << 0 << std::endl;
         }
       }
       return sum;
@@ -258,21 +251,9 @@ namespace FastPCA {
         //   with deg(bin) degree value of bin (lower boundary).
         for (std::size_t i_min_bin=0; i_min_bin < n_min_bins; ++i_min_bin) {
           for (std::size_t k=0; k < n_values_per_bin; ++k) {
-            //TODO test negative candidates
             candidates[j][i_min_bin*n_min_bins + k] = min_bins[i_min_bin]*binwidth + k -180.0f;
           }
         }
-//TODO debug
-//if (j==31) {
-//  std::cerr << "min_bins: " << std::endl;
-//  for (auto mb: min_bins) {
-//    std::cerr << "  " << mb << std::endl;
-//  }
-//  std::cerr << std::endl << "candidates: " << std::endl;
-//  for (auto mc: candidates[31]) {
-//    std::cerr << "  " << mc << std::endl;
-//  }
-//}
       }
       // compute ranking for different shifts
       std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>(n_candidates_per_col));
@@ -293,18 +274,12 @@ namespace FastPCA {
           }
         });
       }
-//std::cerr << "n_jumps[31].size()" << n_jumps[31].size() << std::endl;
-//std::cerr << "candidate, n_jumps: " << std::endl;
       // shifts: minimal jumps win
       std::vector<double> shifts(n_cols);
       for (std::size_t j=0; j < n_cols; ++j) {
         unsigned int jumps_min = n_jumps[j][0];
         std::size_t i_min = 0;
         for (std::size_t i=1; i < n_candidates_per_col; ++i) {
-//TODO debug
-//if (j==31) {
-//  std::cerr << candidates[j][i] << "  " << n_jumps[j][i] << std::endl;
-//}
           if (n_jumps[j][i] < jumps_min) {
             i_min = i;
             jumps_min = n_jumps[j][i];
@@ -312,8 +287,6 @@ namespace FastPCA {
         }
         shifts[j] = candidates[j][i_min];
       }
-//TODO debug
-//std::cerr << std::endl << "min shift (degrees): " << shifts[31] << std::endl;
       // shift not to center, but to barrier
       for (double& s: shifts) {
         s += 180.0;
@@ -321,12 +294,7 @@ namespace FastPCA {
           s -= 360.0;
         }
       }
-//std::cerr << "min shift (degrees, corrected): " << shifts[31] << std::endl;
-//std::cerr << std::endl << "all shifts in deg: " << std::endl;
-//for(auto s: shifts) std::cerr << "  " << s << std::endl;
       deg2rad_inplace(shifts);
-//std::cerr << std::endl << "all shifts in rad: " << std::endl;
-//for(auto s: shifts) std::cerr << "  " << s << std::endl;
       return shifts;
     }
   } // end namespace FastPCA::Periodic
