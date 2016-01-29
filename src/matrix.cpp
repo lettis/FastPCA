@@ -53,8 +53,10 @@ void SymmetricMatrix<float>::_solve_eigensystem() {
   _prepareSyevData<float>(dat, (*this), dat.work[0]);
   ssyev_(&dat.jobz, &dat.uplo, &dat.n, &dat.a[0], &dat.lda, &dat.w[0], &dat.work[0], &dat.lwork, &dat.info);
   // extract data
-  this->_eigenvalues = _extractEigenvalues<float>(dat);
-  this->_eigenvectors = _extractEigenvectors<float>(dat);
+  _eigenvalues = _extractEigenvalues<float>(dat);
+  _eigenvectors = _extractEigenvectors<float>(dat);
+  // enforce ordering from highest to lowest eigenvalue;
+  _enforce_eigval_order();
 }
 
 template <>
@@ -67,8 +69,9 @@ void SymmetricMatrix<double>::_solve_eigensystem() {
   _prepareSyevData<double>(dat, (*this), dat.work[0]);
   dsyev_(&dat.jobz, &dat.uplo, &dat.n, &dat.a[0], &dat.lda, &dat.w[0], &dat.work[0], &dat.lwork, &dat.info);
   // extract data
-  this->_eigenvalues = _extractEigenvalues<double>(dat);
-  this->_eigenvectors = _extractEigenvectors<double>(dat);
+  _eigenvalues = _extractEigenvalues<double>(dat);
+  _eigenvectors = _extractEigenvectors<double>(dat);
+  _enforce_eigval_order();
 }
 
 } // end namespace FastPCA

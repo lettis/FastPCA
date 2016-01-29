@@ -135,7 +135,8 @@ namespace FastPCA {
                              const std::string file_out,
                              Matrix<double> eigenvecs,
                              std::size_t mem_buf_size,
-                             bool use_correlation);
+                             bool use_correlation,
+                             Matrix<double> stats);
 
   /**
    * read input file blockwise and pass reference of current matrix
@@ -151,7 +152,7 @@ namespace FastPCA {
                                Matrix<double> eigenvecs,
                                std::size_t mem_buf_size,
                                bool use_correlation,
-                               bool use_dih_shifts);
+                               Matrix<double> stats);
   } // end namespace FastPCA::Periodic
 } // end namespace FastPCA
 

@@ -71,33 +71,29 @@ namespace FastPCA {
                         const std::string file_out,
                         Matrix<double> eigenvecs,
                         std::size_t mem_buf_size,
-                        bool use_correlation) {
+                        bool use_correlation,
+                        Matrix<double> stats) {
     // calculating the projection, we need twice the space
     // (original data + result)
     mem_buf_size /= 4;
-    bool append_to_file = false;
-    std::vector<double> means;
-    std::vector<double> sigmas;
-    std::tie(std::ignore, std::ignore, means) = FastPCA::means(file_in, mem_buf_size);
-    if (use_correlation) {
-      sigmas = FastPCA::sigmas(file_in, mem_buf_size, means);
-      for (double& s: sigmas) {
-        s = 1.0 / s;
-      }
+    std::size_t n_variables = stats.n_rows();
+    std::vector<double> means(n_variables);
+    std::vector<double> inverse_sigmas(n_variables);
+    for (std::size_t i=0; i < n_variables; ++i) {
+      means[i] = stats(i,0);
+      inverse_sigmas[i] = 1.0 / stats(i,1);
     }
+    bool append_to_file = false;
     DataFileReader<double> fh_file_in(file_in, mem_buf_size);
     DataFileWriter<double> fh_file_out(file_out);
-    while ( ! fh_file_in.eof()) {
-      Matrix<double> m = std::move(fh_file_in.next_block());
-      if (m.n_rows() > 0) {
-        FastPCA::shift_matrix_columns_inplace(m, means);
-        if (use_correlation) {
-          FastPCA::scale_matrix_columns_inplace(m, sigmas);
-        }
-        fh_file_out.write(std::move(m*eigenvecs), append_to_file);
-        append_to_file = true;
+    read_blockwise(fh_file_in, [&](Matrix<double>& m) {
+      FastPCA::shift_matrix_columns_inplace(m, means);
+      if (use_correlation) {
+        FastPCA::scale_matrix_columns_inplace(m, inverse_sigmas);
       }
-    }
+      fh_file_out.write(std::move(m*eigenvecs), append_to_file);
+      append_to_file = true;
+    });
   }
 
   void
@@ -117,33 +113,22 @@ namespace FastPCA {
                           Matrix<double> eigenvecs,
                           std::size_t mem_buf_size,
                           bool use_correlation,
-                          bool use_dih_shifts) {
+                          Matrix<double> stats) {
       mem_buf_size /= 4;
-      std::vector<double> means;
-      std::vector<double> sigmas;
-      std::vector<double> dih_shifts;
-      std::vector<double> scaled_periodicities;
-      // compute means
-      if ((!use_dih_shifts) || use_correlation) {
-        std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(file_in, mem_buf_size);
-      }
-      // compute sigmas
-      if (use_correlation) {
-        sigmas = FastPCA::Periodic::sigmas(file_in, mem_buf_size, means);
-        scaled_periodicities.resize(sigmas.size(), 2*M_PI);
-        for (std::size_t j=0; j < sigmas.size(); ++j) {
-          // invert sigmas for easier rescaling
-          sigmas[j] = 1.0 / sigmas[j];
-          scaled_periodicities[j] *= sigmas[j];
-        }
-      }
-      // compute dih-shifts
-      if (use_dih_shifts) {
-        dih_shifts = FastPCA::Periodic::dih_shifts(file_in, mem_buf_size);
+      std::size_t n_variables = stats.n_rows();
+      std::vector<double> means(n_variables);
+      std::vector<double> inverse_sigmas(n_variables);
+      std::vector<double> dih_shifts(n_variables);
+      std::vector<double> scaled_periodicities(n_variables);
+      for (std::size_t i=0; i < n_variables; ++i) {
+        means[i] = stats(i,0);
+        inverse_sigmas[i] = 1.0 / stats(i,1);
         if (use_correlation) {
-          for (std::size_t i=0; i < dih_shifts.size(); ++i) {
-            dih_shifts[i] = (dih_shifts[i] - means[i]) * sigmas[i];
-          }
+          dih_shifts[i] = (stats(i,2) - means[i]) * inverse_sigmas[i];
+          scaled_periodicities[i] = 2*M_PI * inverse_sigmas[i];
+        } else {
+          dih_shifts[i] = stats(i,2);
+          scaled_periodicities[i] = 2*M_PI;
         }
       }
       // projections
@@ -153,20 +138,15 @@ namespace FastPCA {
       read_blockwise(fh_file_in, [&](Matrix<double>& m) {
         // convert degrees to radians
         FastPCA::deg2rad_inplace(m);
-        if (use_correlation || (! use_dih_shifts)) {
-          // shift by periodic means
-          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-        } else if (use_dih_shifts) {
-          // shift by optimal dih-shifts
-          FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts);
-        }
         if (use_correlation) {
+          // shift by periodic means (necessary for scaling)
+          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
           // scale data by sigmas for correlated projections
-          FastPCA::scale_matrix_columns_inplace(m, sigmas);
-          if (use_dih_shifts) {
-            FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts, scaled_periodicities);
-          }
+          FastPCA::scale_matrix_columns_inplace(m, inverse_sigmas);
         }
+        // shift dihedrals to minimize boundary jumps
+        // and correct for periodic boundary condition
+        FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts, scaled_periodicities);
         // output
         fh_file_out.write(m*eigenvecs, append_to_file);
         append_to_file = true;

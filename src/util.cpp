@@ -34,11 +34,68 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace FastPCA {
 
   namespace {
+    std::tuple<std::size_t, std::size_t, std::vector<double>>
+    _means(const std::string filename
+         , const std::size_t max_chunk_size) {
+      DataFileReader<double> input_file(filename, max_chunk_size);
+      std::size_t n_cols = input_file.n_cols();
+      std::size_t n_rows = 0;
+      std::vector<double> means(n_cols);
+      Matrix<double> m = std::move(input_file.next_block());
+      while (m.n_rows() > 0) {
+        n_rows += m.n_rows();
+        for (std::size_t i=0; i < m.n_rows(); ++i) {
+          for (std::size_t j=0; j < n_cols; ++j) {
+            means[j] += m(i,j);
+          }
+        }
+        m = std::move(input_file.next_block());
+      }
+      for (std::size_t j=0; j < n_cols; ++j) {
+        means[j] /= n_rows;
+      }
+      return std::make_tuple(n_rows, n_cols, means);
+    }
+
+    // compute circular means by averaging sines and cosines
+    // and resolving the mean angle with the atan2 function.
+    // additionally, return number of observations.
+    std::tuple<std::size_t, std::size_t, std::vector<double>>
+    _circular_means(const std::string filename
+                  , const std::size_t max_chunk_size) {
+      DataFileReader<double> input_file(filename, max_chunk_size);
+      Matrix<double> m = std::move(input_file.next_block());
+      FastPCA::deg2rad_inplace(m);
+      std::size_t i, j;
+      std::size_t nr = m.n_rows();
+      std::size_t nc = m.n_cols();
+      std::vector<double> means(nc, 0.0);
+      std::vector<double> means_sin(nc, 0.0);
+      std::vector<double> means_cos(nc, 0.0);
+      std::size_t n_rows_total = 0;
+      while (nr > 0) {
+        for (j=0; j < nc; ++j) {
+          for (i=0; i < nr; ++i) {
+            means_sin[j] += sin(m(i,j));
+            means_cos[j] += cos(m(i,j));
+          }
+        }
+        n_rows_total += nr;
+        m = std::move(input_file.next_block());
+        FastPCA::deg2rad_inplace(m);
+        nr = m.n_rows();
+      }
+      for (j=0; j < nc; ++j) {
+        means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
+      }
+      return std::make_tuple(n_rows_total, nc, means);
+    }
+
     std::vector<double>
     _sigmas(const std::string filename
-         , const std::size_t max_chunk_size
-         , std::vector<double> means
-         , bool periodic) {
+          , const std::size_t max_chunk_size
+          , std::vector<double> means
+          , bool periodic) {
       DataFileReader<double> input_file(filename, max_chunk_size);
       std::size_t n_cols = means.size();
       std::size_t n_rows = 0;
@@ -93,107 +150,9 @@ namespace FastPCA {
       return sum;
     }
 
-  } // end local namespace
-
-
-  bool is_comment_or_empty(std::string line) {
-    std::size_t pos = line.find_first_not_of(" ");
-    if (pos == std::string::npos) {
-      // empty string
-      return true;
-    } else if (line[pos] == '#' or line[pos] == '@') {
-      // comment
-      return true;
-    } else {
-      return false;
-    }
-  }
-
-  std::tuple<std::size_t, std::size_t, std::vector<double>>
-  means(const std::string filename
-      , const std::size_t max_chunk_size) {
-    DataFileReader<double> input_file(filename, max_chunk_size);
-    std::size_t n_cols = input_file.n_cols();
-    std::size_t n_rows = 0;
-    std::vector<double> means(n_cols);
-    Matrix<double> m = std::move(input_file.next_block());
-    while (m.n_rows() > 0) {
-      n_rows += m.n_rows();
-      for (std::size_t i=0; i < m.n_rows(); ++i) {
-        for (std::size_t j=0; j < n_cols; ++j) {
-          means[j] += m(i,j);
-        }
-      }
-      m = std::move(input_file.next_block());
-    }
-    for (std::size_t j=0; j < n_cols; ++j) {
-      means[j] /= n_rows;
-    }
-    return std::make_tuple(n_rows, n_cols, means);
-  }
-
-  std::vector<double>
-  sigmas(const std::string filename
-       , const std::size_t max_chunk_size
-       , std::vector<double> means) {
-    return _sigmas(filename, max_chunk_size, means, false);
-  }
-
-  namespace Periodic {
-    double
-    distance(double theta1, double theta2) {
-      double abs_diff = std::abs(theta1 - theta2);
-      if (abs_diff <= M_PI) {
-        return abs_diff;
-      } else {
-        return abs_diff - (2*M_PI);
-      }
-    }
-
-    // compute circular means by averaging sines and cosines
-    // and resolving the mean angle with the atan2 function.
-    // additionally, return number of observations.
-    std::tuple<std::size_t, std::size_t, std::vector<double>>
-    means(const std::string filename
-        , const std::size_t max_chunk_size) {
-      DataFileReader<double> input_file(filename, max_chunk_size);
-      Matrix<double> m = std::move(input_file.next_block());
-      FastPCA::deg2rad_inplace(m);
-      std::size_t i, j;
-      std::size_t nr = m.n_rows();
-      std::size_t nc = m.n_cols();
-      std::vector<double> means(nc, 0.0);
-      std::vector<double> means_sin(nc, 0.0);
-      std::vector<double> means_cos(nc, 0.0);
-      std::size_t n_rows_total = 0;
-      while (nr > 0) {
-        for (j=0; j < nc; ++j) {
-          for (i=0; i < nr; ++i) {
-            means_sin[j] += sin(m(i,j));
-            means_cos[j] += cos(m(i,j));
-          }
-        }
-        n_rows_total += nr;
-        m = std::move(input_file.next_block());
-        FastPCA::deg2rad_inplace(m);
-        nr = m.n_rows();
-      }
-      for (j=0; j < nc; ++j) {
-        means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
-      }
-      return std::make_tuple(n_rows_total, nc, means);
-    }
-
     std::vector<double>
-    sigmas(const std::string filename
-         , const std::size_t max_chunk_size
-         , std::vector<double> means) {
-      return _sigmas(filename, max_chunk_size, means, true);
-    }
-
-    std::vector<double>
-    dih_shifts(const std::string filename
-             , std::size_t max_chunk_size) {
+    _dih_shifts(const std::string filename
+              , std::size_t max_chunk_size) {
       max_chunk_size /= 2;
       // get number of columns from file
       std::size_t n_cols;
@@ -297,6 +256,83 @@ namespace FastPCA {
       deg2rad_inplace(shifts);
       return shifts;
     }
+
+    Matrix<double>
+    _stats(const std::string filename
+         , const std::size_t max_chunk_size
+         , bool periodic) {
+      std::vector<double> means;
+      std::size_t n_rows, n_cols;
+      // means
+      if (periodic) {
+        std::tie(n_rows, n_cols, means) = _circular_means(filename, max_chunk_size);
+      } else {
+        std::tie(n_rows, n_cols, means) = _means(filename, max_chunk_size);
+      }
+      // sigmas
+      std::vector<double> sigmas = _sigmas(filename, max_chunk_size, means, periodic);
+      // shifts
+      std::vector<double> shifts;
+      if (periodic) {
+        shifts = _dih_shifts(filename, max_chunk_size);
+      }
+      int n_cols_out;
+      if (periodic) {
+        n_cols_out = 3;
+      } else {
+        n_cols_out = 2;
+      }
+      Matrix<double> stats(n_cols, n_cols_out);
+      for (std::size_t i=0; i < n_cols; ++i) {
+        stats(i, 0) = means[i];
+        stats(i, 1) = sigmas[i];
+        if (periodic) {
+          stats(i, 2) = shifts[i];
+        }
+      }
+      return stats;
+    }
+
+  } // end local namespace
+
+
+  bool is_comment_or_empty(std::string line) {
+    std::size_t pos = line.find_first_not_of(" ");
+    if (pos == std::string::npos) {
+      // empty string
+      return true;
+    } else if (line[pos] == '#' or line[pos] == '@') {
+      // comment
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  Matrix<double>
+  stats(const std::string filename
+      , const std::size_t max_chunk_size) {
+    return _stats(filename, max_chunk_size, false);
+  }
+
+
+  namespace Periodic {
+    double
+    distance(double theta1, double theta2) {
+      double abs_diff = std::abs(theta1 - theta2);
+      if (abs_diff <= M_PI) {
+        return abs_diff;
+      } else {
+        return abs_diff - (2*M_PI);
+      }
+    }
+
+    Matrix<double>
+    stats(const std::string filename
+        , const std::size_t max_chunk_size) {
+      return _stats(filename, max_chunk_size, true);
+    }
+
   } // end namespace FastPCA::Periodic
 } // end namespace FastPCA
 

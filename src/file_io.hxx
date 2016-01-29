@@ -1,4 +1,3 @@
-
 /*
 Copyright (c) 2014, Florian Sittel (www.lettis.net)
 All rights reserved.
@@ -85,7 +84,6 @@ namespace FastPCA {
         fh.open(file_out, std::ios::out);
       }
       if (fh.is_open()) {
-        //int n_digits = std::numeric_limits<T>::digits10;
         int n_digits = 6;
         fh.precision(n_digits);
         fh.setf(std::ios::scientific);
@@ -221,10 +219,8 @@ namespace FastPCA {
       _n_cols(0),
       _eof(false) {
     this->_ftype = filename_suffix(filename);
-  
     if (this->_ftype == XTC) {
       // use XTC file
-      //this->_fh_xtc = UseXTC::XTCFile(filename, "r");
       this->_fh_xtc = std::shared_ptr<XDRFILE>(xdrfile_open(filename.c_str(), "r"),
                                                // deleter function called when pointer goes out of scope
                                                [](XDRFILE* f) {
@@ -239,7 +235,8 @@ namespace FastPCA {
   
   template <class T>
   DataFileReader<T>::DataFileReader(std::string filename)
-    : DataFileReader(filename, FastPCA::gigabytes_to_bytes(1)) {
+      // zero byte buffer: read everything at once
+    : DataFileReader(filename, 0) {
   }
   
   template <class T>
@@ -270,7 +267,6 @@ namespace FastPCA {
         if (this->_n_cols == 0) {
           throw FileFormatError();
         }
-        //return UseCSV::read_chunk<T>(this->_fh, this->_n_cols, n_possible_rows);
         return UseCSV::read_chunk<T>(this->_parser, n_possible_rows);
       }
     }

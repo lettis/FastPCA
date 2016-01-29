@@ -24,22 +24,24 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-
-#include "matrix.hpp"
+#include <vector>
+#include <string>
 
 // resolve circular dependency
-// (used in file_io)
 namespace FastPCA {
+  // used in file_io
   constexpr std::size_t
   gigabytes_to_bytes(std::size_t gb) {
     return gb * 1073741824;
   }
+  // used in matrix
+  template <class T>
+  std::vector<std::size_t>
+  sorted_index(const std::vector<T> &v, bool reverse_sorting=false);
 }
 
+#include "matrix.hpp"
 #include "file_io.hpp"
-
-#include <vector>
-#include <string>
 
 namespace FastPCA {
 
@@ -70,23 +72,11 @@ namespace FastPCA {
   void
   scale_matrix_columns_inplace(Matrix<T>& m, std::vector<T> factors);
 
-  /**
-   * simple stats for observables:
-   *   1. number of observations in data set
-   *   2. number of observables
-   *   3. means of observables
-   */
-  std::tuple<std::size_t, std::size_t, std::vector<double>>
-  means(const std::string filename
-      , const std::size_t max_chunk_size);
-
-  /**
-   * sigmas (i.e. standard deviations) of data set
-   */
-  std::vector<double>
-  sigmas(const std::string filename
-       , const std::size_t max_chunk_size
-       , std::vector<double> means);
+  // statistical attributes in three columns:
+  //  - means
+  //  - sigmas
+  Matrix<double> stats(const std::string filename
+                     , const std::size_t max_chunk_size);
 
   namespace Periodic {
     /**
@@ -114,28 +104,13 @@ namespace FastPCA {
     void
     shift_matrix_columns_inplace(Matrix<T>& m, std::vector<T> shifts);
   
-    /**
-     * simple stats for periodic observables:
-     *   1. number of observations in data set
-     *   2. number of observables
-     *   3. means of observables
-     */
-    std::tuple<std::size_t, std::size_t, std::vector<double>>
-    means(const std::string filename
+    // statistical attributes in three columns:
+    //  - means
+    //  - sigmas
+    //  - optimal shifts
+    Matrix<double>
+    stats(const std::string filename
         , const std::size_t max_chunk_size);
-
-    std::vector<double>
-    sigmas(const std::string filename
-         , const std::size_t max_chunk_size
-         , std::vector<double> means);
-
-    /**
-     * compute optimal shifts for dihedrals to
-     * move low-sampled barrier to periodic boundary
-     */
-    std::vector<double>
-    dih_shifts(const std::string filename
-             , std::size_t max_chunk_size);
   } // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA

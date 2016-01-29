@@ -86,6 +86,7 @@ class SymmetricMatrix {
 
   bool _eigensystem_is_solved;
   void _solve_eigensystem();
+  void _enforce_eigval_order();
 
   std::vector<T> _eigenvalues;
   Matrix<T> _eigenvectors;
@@ -129,6 +130,12 @@ namespace {
   template <class T>
   std::vector<T> _extractEigenvalues(const SyevData<T>& dat);
 } // end local namespace
+
+
+
+template <class T>
+void
+copy_column(const Matrix<T>& m_from, std::size_t i_col_from, Matrix<T>& m_to, std::size_t i_col_to);
 
 } // end namespace FastPCA
 

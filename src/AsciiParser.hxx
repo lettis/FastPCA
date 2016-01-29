@@ -96,33 +96,55 @@ std::vector< std::vector<T> > AsciiParser<T>::next_n_lines(std::size_t n) {
 
 template <typename T>
 std::vector<T> AsciiParser<T>::next_n_lines_continuous(std::size_t& n, AsciiParser::Flags mode) {
-  std::vector<T> res(n * this->_n_cols);
+  // use result-vector directly if n is known
+  std::vector<T> res(n * _n_cols);
+  // use this, if n == 0, i.e. if number of rows is unknown
+  std::vector<std::vector<T>> res_infty_n(_n_cols, std::vector<T>());
   std::size_t i=0;
   while (this->_comments_ignored()) {
-    if (i < n) {
-      for (std::size_t j=0; j < this->_n_cols; ++j) {
+    if (n == 0) {
+      // read complete file
+      for (std::size_t j=0; j < _n_cols; ++j) {
+        T buf;
+        _fh_in >> buf;
+        res_infty_n[j].push_back(buf);
+      }
+    } else if (i < n) {
+      // read until max number of rows is reached
+      for (std::size_t j=0; j < _n_cols; ++j) {
         if (mode == ROW_MAJOR) {
-          this->_fh_in >> res[i*this->_n_cols+j];
+          this->_fh_in >> res[i*_n_cols+j];
         } else if (mode == COL_MAJOR) {
           this->_fh_in >> res[j*n+i];
         }
       }
-      ++i;
     } else {
       break;
     }
+    ++i;
   }
   // handle case that less than n lines have been read
   if (i != n) {
     if (mode == ROW_MAJOR) {
       // trivial, just shorten vector
-      res.resize(i * this->_n_cols);
+      res.resize(i * _n_cols);
+      if (n == 0) {
+        for (std::size_t ii=0; ii < i; ++ii) {
+          for (std::size_t jj=0; jj < _n_cols; ++jj) {
+            res[ii*_n_cols+jj] = res_infty_n[jj][ii];
+          }
+        }
+      }
     } else if (mode == COL_MAJOR) {
       // recopy to new, smaller vector
-      std::vector<T> buf(i * this->_n_cols);
+      std::vector<T> buf(i * _n_cols);
       for (std::size_t ii=0; ii < i; ++ii) {
-        for (std::size_t jj=0; jj < this->_n_cols; ++jj) {
-          buf[jj*i+ii] = res[jj*n+ii];
+        for (std::size_t jj=0; jj < _n_cols; ++jj) {
+          if (n == 0) {
+            buf[jj*i+ii] = res_infty_n[jj][ii];
+          } else {
+            buf[jj*i+ii] = res[jj*n+ii];
+          }
         }
       }
       res = buf;

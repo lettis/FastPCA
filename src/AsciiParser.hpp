@@ -55,7 +55,8 @@ class AsciiParser {
   //  addressing in ROW_MAJOR format: elem(i,j) = block[i*n_cols+j]
   //  addressing in COL_MAJOR format: elem(i,j) = block[j*n+i]
   //  if less then n lines can be read (e.g. in case of EOF), n will
-  //  be reset to the actually number of lines read.
+  //  be reset to the actual number of lines read.
+  //  If n is initialized to 0, read all lines until EOF.
   std::vector<T> next_n_lines_continuous(std::size_t& n, Flags mode=AsciiParser::ROW_MAJOR);
   // EOF reached?
   bool eof();

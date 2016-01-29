@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <string>
 #include <cmath>
+#include <algorithm>
 
 namespace FastPCA {
 
@@ -53,7 +54,22 @@ namespace FastPCA {
       return (v < 0) ? -1.0 : 1.0;
     }
   } // end local namespace
-  
+
+  template <class T>
+  std::vector<std::size_t>
+  sorted_index(const std::vector<T> &v, bool reverse_sorting=false) {
+    std::vector<std::size_t> indeces(v.size());
+    for (std::size_t i = 0; i != v.size(); ++i) {
+      indeces[i] = i;
+    }
+    if (reverse_sorting) {
+      std::sort(indeces.begin(), indeces.end(), [&v](std::size_t i1, std::size_t i2) {return v[i1] > v[i2];});
+    } else {
+      std::sort(indeces.begin(), indeces.end(), [&v](std::size_t i1, std::size_t i2) {return v[i1] < v[i2];});
+    }
+    return indeces;
+  }
+
   template <class T>
   void
   deg2rad_inplace(Matrix<T>& m) {

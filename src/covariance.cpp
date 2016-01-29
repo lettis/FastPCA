@@ -107,24 +107,14 @@ namespace FastPCA {
     _covariance_matrix(const std::string filename
                      , const std::size_t max_chunk_size
                      , bool use_correlation
-                     , bool periodic) {
-      // get means and sigmas if needed
-      std::vector<double> means;
-      std::vector<double> sigmas;
-      if (periodic) {
-        std::tie(std::ignore, std::ignore, means) = FastPCA::Periodic::means(filename, max_chunk_size);
-      } else {
-        std::tie(std::ignore, std::ignore, means) = FastPCA::means(filename, max_chunk_size);
-      }
-      if (use_correlation) {
-        if (periodic) {
-          sigmas = FastPCA::Periodic::sigmas(filename, max_chunk_size, means);
-        } else {
-          sigmas = FastPCA::sigmas(filename, max_chunk_size, means);
-        }
-        for (double& s: sigmas) {
-          s = 1.0 / s;
-        }
+                     , bool periodic
+                     , Matrix<double> stats) {
+      std::size_t n_variables = stats.n_rows();
+      std::vector<double> means(n_variables);
+      std::vector<double> inverse_sigmas(n_variables);
+      for (std::size_t i=0; i < n_variables; ++i) {
+        means[i] = stats(i,0);
+        inverse_sigmas[i] = 1.0 / stats(i,1);
       }
       // take only half size because of intermediate results.
       std::size_t chunk_size = max_chunk_size / 2;
@@ -145,7 +135,7 @@ namespace FastPCA {
         }
         // normalize columns by dividing by sigma
         if (use_correlation) {
-          FastPCA::scale_matrix_columns_inplace(m, sigmas);
+          FastPCA::scale_matrix_columns_inplace(m, inverse_sigmas);
         }
         acc = _join_accumulations(acc, _accumulate_covariance(m));
         m = std::move(input_file.next_block());
@@ -162,16 +152,18 @@ namespace FastPCA {
     SymmetricMatrix<double>
     covariance_matrix(const std::string filename
                     , const std::size_t max_chunk_size
-                    , bool use_correlation) {
-      return _covariance_matrix(filename, max_chunk_size, use_correlation, true);
+                    , bool use_correlation
+                    , Matrix<double> stats) {
+      return _covariance_matrix(filename, max_chunk_size, use_correlation, true, stats);
     }
   } // end namespace FastPCA::Periodic
 
   SymmetricMatrix<double>
   covariance_matrix(const std::string filename
                   , const std::size_t max_chunk_size
-                  , bool use_correlation) {
-    return _covariance_matrix(filename, max_chunk_size, use_correlation, false);
+                  , bool use_correlation
+                  , Matrix<double> stats) {
+    return _covariance_matrix(filename, max_chunk_size, use_correlation, false, stats);
   }
 } // end namespace FastPCA
 

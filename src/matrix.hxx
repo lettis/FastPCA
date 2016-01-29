@@ -24,6 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 #include "errors.hpp"
 #include "matrix.hpp"
+#include "util.hpp"
 
 #include <utility>
 #include <algorithm>
@@ -78,7 +79,7 @@ void _prepareSyevData(SyevData<T>& dat, SymmetricMatrix<T>& m, int lwork) {
 template <class T>
 Matrix<T> _extractEigenvectors(const SyevData<T>& dat) {
   // the eigenvectors from lapack are row-oriented
-  // and ordered from lowest to highest eigenvalue.
+  // and (mostly!) ordered from lowest to highest eigenvalue.
   // we want a matrix with column-oriented eigenvectors
   // ordered from highest to lowest eigenvalue.
   Matrix<T> v(dat.n, dat.n);
@@ -320,6 +321,20 @@ Matrix<T> SymmetricMatrix<T>::eigenvectors() {
 }
 
 template <class T>
+void
+SymmetricMatrix<T>::_enforce_eigval_order() {
+  std::vector<std::size_t> ordered_indeces = FastPCA::sorted_index(_eigenvalues, true);
+  std::vector<T> buf_eigvals = _eigenvalues;
+  Matrix<T> buf_eigvectors(_eigenvectors.n_rows(), _eigenvectors.n_cols());
+  for (std::size_t i=0; i < _eigenvalues.size(); ++i) {
+    _eigenvalues[i] = buf_eigvals[ordered_indeces[i]];
+    FastPCA::copy_column(_eigenvectors, i, buf_eigvectors, ordered_indeces[i]);
+  }
+  _eigenvectors = buf_eigvectors;
+}
+
+
+template <class T>
 SymmetricMatrix<T> operator+(const SymmetricMatrix<T>& s1, const SymmetricMatrix<T>& s2) {
   assert(s1.n_rows() == s2.n_rows());
   std::size_t nr = s1.n_rows();
@@ -340,6 +355,16 @@ std::ostream& operator<< (std::ostream& out, SymmetricMatrix<T>& s) {
     }
   }
   return out;
+}
+
+
+
+template <class T>
+void
+copy_column(const Matrix<T>& m_from, std::size_t i_col_from, Matrix<T>& m_to, std::size_t i_col_to) {
+  for (std::size_t i=0; i < m_from.n_rows(); ++i) {
+    m_to(i, i_col_to) = m_from(i, i_col_from);
+  }
 }
 
 } // end namespace FastPCA

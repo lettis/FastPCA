@@ -49,13 +49,15 @@ namespace FastPCA {
   SymmetricMatrix<double>
   covariance_matrix(const std::string filename
                   , const std::size_t max_chunk_size
-                  , bool use_correlation);
+                  , bool use_correlation
+                  , Matrix<double> stats);
 
   namespace Periodic {
     SymmetricMatrix<double>
     covariance_matrix(const std::string filename
                     , const std::size_t max_chunk_size
-                    , bool use_correlation);
+                    , bool use_correlation
+                    , Matrix<double> stats);
   }; // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA
