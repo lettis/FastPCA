@@ -57,7 +57,7 @@ namespace FastPCA {
 
   template <class T>
   std::vector<std::size_t>
-  sorted_index(const std::vector<T> &v, bool reverse_sorting=false) {
+  sorted_index(const std::vector<T> &v, bool reverse_sorting) {
     std::vector<std::size_t> indeces(v.size());
     for (std::size_t i = 0; i != v.size(); ++i) {
       indeces[i] = i;
