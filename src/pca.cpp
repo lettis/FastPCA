@@ -135,7 +135,7 @@ int main(int argc, char* argv[]) {
           verbose && std::cerr << "loading stats (shifts, means, sigmas) from file" << std::endl;
           FastPCA::DataFileReader<double> fh_shifts(args["stats-in"].as<std::string>());
           stats = fh_shifts.next_block();
-        } else if (stats_file_given || projection_file_given) {
+        } else {
           if (periodic) {
             stats = FastPCA::Periodic::stats(file_input, mem_buf_size);
           } else {
