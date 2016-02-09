@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Fastpca by lettis</title>
+
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+    <meta name="viewport" content="width=device-width">
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+  </head>
+  <body>
+    <div class="wrapper">
+      <header>
+        <h1>Fastpca</h1>
+        <p>Fast, parallelized implementation of Principal Component Analysis with constant memory consumption for large data sets.</p>
+
+        <p class="view"><a href="https://github.com/lettis/FastPCA">View the Project on GitHub <small>lettis/FastPCA</small></a></p>
+
+
+        <ul>
+          <li><a href="https://github.com/lettis/FastPCA/zipball/master">Download <strong>ZIP File</strong></a></li>
+          <li><a href="https://github.com/lettis/FastPCA/tarball/master">Download <strong>TAR Ball</strong></a></li>
+          <li><a href="https://github.com/lettis/FastPCA">View On <strong>GitHub</strong></a></li>
+        </ul>
+      </header>
+      <section>
+        <h1>
+<a id="about" class="anchor" href="#about" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>About</h1>
+
+<p>FastPCA is a PCA-calculator programmed in C++(11).
+Computation is parallelized with OpenMP.</p>
+
+<p>For fast matrix diagonalization, LAPACK is used (and needed, of course).</p>
+
+<p>The project includes the 'xdrfile' library of GROMACS. Thus, you can
+use data files written as ASCII data as well as .xtc-trajectories.</p>
+
+<p>For bug-reports, write to</p>
+
+<p><a href="mailto:sittel@lettis.net">sittel@lettis.net</a>
+or
+   <a href="mailto:florian.sittel@physik.uni-freiburg.de">florian.sittel@physik.uni-freiburg.de</a></p>
+
+<p>Happy Computing.</p>
+
+<h1>
+<a id="compilation" class="anchor" href="#compilation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Compilation</h1>
+
+<p>Create a build-directory in the project root and change into
+that directory:</p>
+
+<p># mkdir build</p>
+
+<p># cd build</p>
+
+<p>Run cmake, based on the underlying project:</p>
+
+<p># cmake ..</p>
+
+<p>Hopefully, everything went right.
+If not, carefully read the error messages.
+Typical errors are missing dependencies...</p>
+
+<p>If everything is o.k., run make (on multicore machines, use '-j' to parallelize
+compilation, e.g. 'make -j 4' for up to four parallel jobs):</p>
+
+<p># make</p>
+
+<p>Now, you should find the 'fastca' binary in the 'src' folder.</p>
+
+<h2>
+<a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Requirements</h2>
+
+<ul>
+<li>LAPACK</li>
+<li>Boost (program_options), min. version 1.49</li>
+<li>cmake, min. version 2.8</li>
+<li>g++</li>
+</ul>
+      </section>
+      <footer>
+        <p>This project is maintained by <a href="https://github.com/lettis">lettis</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+      </footer>
+    </div>
+    <script src="javascripts/scale.fix.js"></script>
+    
+  </body>
+</html>
