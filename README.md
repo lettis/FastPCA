@@ -21,7 +21,7 @@ For details, please see LICENSE.txt
 
 If you use the code for published works, please cite as
 
-"Florian Sittel (2016), *FastPCA - fast Principal Component Analysis Package*, http://lettis.github.io/FastPCA"
+"Florian Sittel (2016) *FastPCA - fast Principal Component Analysis Package*, http://lettis.github.io/FastPCA"
 
 
 # Compilation #
