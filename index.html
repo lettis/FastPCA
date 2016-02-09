@@ -39,38 +39,40 @@ Computation is parallelized with OpenMP.</p>
 <p>The project includes the 'xdrfile' library of GROMACS. Thus, you can
 use data files written as ASCII data as well as .xtc-trajectories.</p>
 
-<p>For bug-reports, write to</p>
-
-<p><a href="mailto:sittel@lettis.net">sittel@lettis.net</a>
+<p>For bug-reports, write to
+   <a href="mailto:sittel@lettis.net">sittel@lettis.net</a>
 or
    <a href="mailto:florian.sittel@physik.uni-freiburg.de">florian.sittel@physik.uni-freiburg.de</a></p>
 
 <p>Happy Computing.</p>
 
 <h1>
+<a id="licensing" class="anchor" href="#licensing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Licensing</h1>
+
+<p>The code is published "AS IS" under the simplified BSD license.
+For details, please see LICENSE.txt</p>
+
+<p>If you use the code for published works, please cite as</p>
+
+<p>"Florian Sittel (2016) <em>FastPCA - fast Principal Component Analysis Package</em>, <a href="http://lettis.github.io/FastPCA">http://lettis.github.io/FastPCA</a>"</p>
+
+<h1>
 <a id="compilation" class="anchor" href="#compilation" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Compilation</h1>
 
 <p>Create a build-directory in the project root and change into
-that directory:</p>
-
-<p># mkdir build</p>
-
-<p># cd build</p>
-
-<p>Run cmake, based on the underlying project:</p>
-
-<p># cmake ..</p>
-
-<p>Hopefully, everything went right.
+that directory:
+   # mkdir build
+   # cd build
+Run cmake, based on the underlying project:
+   # cmake ..
+Hopefully, everything went right.
 If not, carefully read the error messages.
 Typical errors are missing dependencies...</p>
 
 <p>If everything is o.k., run make (on multicore machines, use '-j' to parallelize
-compilation, e.g. 'make -j 4' for up to four parallel jobs):</p>
-
-<p># make</p>
-
-<p>Now, you should find the 'fastca' binary in the 'src' folder.</p>
+compilation, e.g. 'make -j 4' for up to four parallel jobs):
+   # make
+Now, you should find the 'fastca' binary in the 'src' folder.</p>
 
 <h2>
 <a id="requirements" class="anchor" href="#requirements" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Requirements</h2>
