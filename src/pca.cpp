@@ -53,13 +53,18 @@ int main(int argc, char* argv[]) {
     ("help,h", "show this help")
     // input
     ("file,f", b_po::value<std::string>(),
-        "input (required): either whitespace-separated ASCII or GROMACS xtc-file.")
+        "input (required): either whitespace-separated ASCII"
+        " or GROMACS xtc-file.")
     ("cov-in,C", b_po::value<std::string>()->default_value(""),
         "input (optional): file with already calculated covariance matrix")
     ("vec-in,V", b_po::value<std::string>()->default_value(""),
         "input (optional): file with already computed eigenvectors")
     ("stats-in,S", b_po::value<std::string>()->default_value(""),
-        "input (optional): mean values, sigmas and boundary shifts (shifts only for periodic)") 
+        "input (optional): mean values, sigmas and boundary shifts (shifts only for periodic)."
+        " Provide this, if you want to project new data onto a previously computed principal space."
+        " If you do not define the stats of the previous run, means, sigmas and shifts"
+        " will be re-computed and the resulting projections will not be comparable"
+        " to the previous ones.")
     // output
     ("proj,p", b_po::value<std::string>()->default_value(""),
         "output (optional): file for projected data")
@@ -120,12 +125,13 @@ int main(int argc, char* argv[]) {
   
         std::size_t nthreads = args["nthreads"].as<std::size_t>();
         if (nthreads > 0) {
-          // if not set explicitly (i.e. nthreads == 0), num_threads will be initialized to value of
-          // environment variable OMP_NUM_THREADS
+          // if not set explicitly (i.e. nthreads == 0), num_threads will
+          // be initialized to value of environment variable OMP_NUM_THREADS
           omp_set_num_threads(nthreads);
         }
         std::string file_input = args["file"].as<std::string>();
-        std::size_t mem_buf_size = FastPCA::gigabytes_to_bytes(args["buf"].as<std::size_t>());
+        std::size_t mem_buf_size = FastPCA::gigabytes_to_bytes(
+                                      args["buf"].as<std::size_t>());
         FastPCA::SymmetricMatrix<double> cov;
         FastPCA::Matrix<double> vecs;
         FastPCA::Matrix<double> stats;
@@ -144,8 +150,8 @@ int main(int argc, char* argv[]) {
         }
         if (input_eigenvec_file_given && input_covmat_file_given) {
           // -V and -C ?
-          std::cerr << "error: providing the covariance matrix and the eigenvectors does not make sense." << std::endl
-                    << "       if we have the vectors, we do not need the covariance matrix," << std::endl
+          std::cerr << "error: Providing the covariance matrix and the eigenvectors does not make sense." << std::endl
+                    << "       If we have the vectors, we do not need the covariance matrix," << std::endl
                     << "       therefore the options '-C' and '-V' are mutually exclusive." << std::endl;
           return EXIT_FAILURE;
         } else if (input_eigenvec_file_given) {
@@ -154,9 +160,12 @@ int main(int argc, char* argv[]) {
           FastPCA::DataFileReader<double> fh_vecs(args["vec-in"].as<std::string>());
           vecs = fh_vecs.next_block();
           if (projection_file_given && (! input_stats_file_given)) {
-            std::cerr << "warning: you specified a projection output and gave pre-computed eigenvectors." << std::endl
-                      << "         are you sure do not need the precomputed stats (means, sigma, [dihedral shifts])" << std::endl
-                      << "         for correct projection, too?" << std::endl;
+            std::cerr << "warning: You specified a projection output and gave" << std::endl
+                      << "         pre-computed eigenvectors." << std::endl
+                      << "         Projection is, however, centered to the mean." << std::endl
+                      << "         Without stats (means, sigma, [dihedral shifts])," << std::endl
+                      << "         you will in general get non-comparable results" << std::endl
+                      << "         to previous projections!" << std::endl;
           }
         } else {
           if (input_covmat_file_given) {
