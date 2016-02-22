@@ -80,7 +80,9 @@ int main(int argc, char* argv[]) {
     ("norm,N", b_po::value(&use_correlation)->zero_tokens(),
         "if set, use correlation instead of covariance by normalizing input (default: false)")
     ("buf,b", b_po::value<std::size_t>()->default_value(2),
-        "max. allocatable RAM [Gb] (default: 2)")
+        "max. allocatable RAM [Gb] (default: 2); WARNING there is some error in the code "
+        "that leads to twice mem consumption at some point. use only HALF of what you would "
+        "normally use. will be fixed soon")
     ("periodic,P", b_po::value(&periodic)->zero_tokens(),
         "compute covariance and PCA on a torus (i.e. for periodic data like dihedral angles)")
     ("verbose", b_po::value(&verbose)->zero_tokens(),
@@ -142,6 +144,7 @@ int main(int argc, char* argv[]) {
           FastPCA::DataFileReader<double> fh_shifts(args["stats-in"].as<std::string>());
           stats = fh_shifts.next_block();
         } else {
+          verbose && std::cerr << "computing stats (means, sigmas, ...)" << std::endl;
           if (periodic) {
             stats = FastPCA::Periodic::stats(file_input, mem_buf_size);
           } else {
@@ -219,7 +222,7 @@ int main(int argc, char* argv[]) {
         }
         // -s ?
         if (stats_file_given) {
-          verbose && std::cerr << "writing optimal periodic shifts" << std::endl;
+          verbose && std::cerr << "writing stats" << std::endl;
           FastPCA::DataFileWriter<double>(args["stats"].as<std::string>()).write(stats);
         }
       } else {
