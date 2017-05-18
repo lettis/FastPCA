@@ -110,7 +110,8 @@ namespace FastPCA {
     //  - optimal shifts
     Matrix<double>
     stats(const std::string filename
-        , const std::size_t max_chunk_size);
+        , const std::size_t max_chunk_size
+        , const bool dynamic_shift);
   } // end namespace FastPCA::Periodic
 
 } // end namespace FastPCA

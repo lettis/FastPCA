@@ -150,10 +150,134 @@ namespace FastPCA {
       return sum;
     }
 
+    std::size_t
+    _n_cols(const std::string filename) {
+      return DataFileReader<double>(filename, 1024).n_cols();
+    }
+
+    std::vector<std::vector<unsigned int>>
+    _shift_hists(const std::string filename
+               , std::size_t max_chunk_size
+               , std::size_t n_bins
+               , std::size_t binwidth) {
+      std::size_t n_cols = _n_cols(filename);
+      // result
+      std::vector<std::vector<unsigned int>>
+        hists(n_cols
+            , std::vector<unsigned int>(n_bins));
+      // compute histograms
+      DataFileReader<double> input_file(filename, max_chunk_size/2);
+      read_blockwise(input_file
+                   , [&hists,binwidth,n_bins](Matrix<double>& m) {
+        std::size_t i, j, i_bin;
+        #pragma omp parallel for default(none)\
+                                 private(j,i,i_bin)\
+                                 firstprivate(n_cols,n_bins,binwidth)\
+                                 shared(hists,m)
+        for (j=0; j < m.n_cols(); ++j) {
+          for (i=0; i < m.n_rows(); ++i) {
+            for (i_bin=0; i_bin < n_bins; ++i_bin) {
+              if (m(i,j) <= -180.0f + (i_bin+1)*binwidth) {
+                ++hists[j][i_bin];
+                break;
+              }
+            }
+          }
+        }
+      });
+      return hists;
+    }
+
     std::vector<double>
-    _dih_shifts(const std::string filename
-              , std::size_t max_chunk_size) {
+    _shift_barrier(std::vector<double> barriers) {
+      // shift not to center, but to barrier
+      for (double& b: barriers) {
+        b += 180.0;
+        if (b > 180.0) {
+          b -= 360.0;
+        }
+      }
+      deg2rad_inplace(barriers);
+      return barriers;
+    }
+
+    std::vector<double>
+    _dih_shifts_static(const std::string filename
+                     , std::size_t max_chunk_size) {
       max_chunk_size /= 2;
+      // get number of columns from file
+      std::size_t n_cols = _n_cols(filename);
+      // histograms of degree populations
+      // (72 bins of 5 degrees width, [-180, 180])
+      const std::size_t n_bins = 72;
+      const float binwidth = 5.0;
+      std::vector<std::vector<unsigned int>> hists =
+        _shift_hists(filename
+                   , max_chunk_size
+                   , n_bins
+                   , binwidth);
+      // periodic index correction
+      auto periodic = [n_bins](int i) -> int {
+        if (i < 0) {
+          return n_bins + i;
+        } else if (i >= n_bins) {
+          return i - n_bins;
+        } else {
+          return i;
+        }
+      };
+      // find barriers per column
+      std::vector<double> barriers(n_cols);
+      for (unsigned int i_col=0; i_col < n_cols; ++i_col) {
+        // bin statistics for comparison
+        // (pop of bin and sum(pops) over 3, 5, 7 neighboring bins)
+        std::vector<std::pair<unsigned int
+                            , std::array<unsigned int, 4>>> bin_stats(n_bins);
+        for (int i=0; i < n_bins; ++i) {
+          bin_stats[i].first = i;
+          // bin itself
+          bin_stats[i].second[0] = hists[i_col][i];
+          // sum 3 neighbors
+          bin_stats[i].second[1] = bin_stats[i].second[0]
+                                 + hists[i_col][periodic(i-1)]
+                                 + hists[i_col][periodic(i+1)];
+          // sum 5 neighbors
+          bin_stats[i].second[2] = bin_stats[i].second[1]
+                                 + hists[i_col][periodic(i-2)]
+                                 + hists[i_col][periodic(i+2)];
+          // sum 7 neighbors
+          bin_stats[i].second[3] = bin_stats[i].second[2]
+                                 + hists[i_col][periodic(i-3)]
+                                 + hists[i_col][periodic(i+3)];
+        }
+        // comparator: a < b ?
+        auto bin_stats_comp = [](std::pair<unsigned int
+                                         , std::array<unsigned int, 4>> a
+                               , std::pair<unsigned int
+                                         , std::array<unsigned int, 4>> b) {
+          return (a.second[0] < b.second[0])
+              || ((a.second[0] == b.second[0])
+               && (a.second[1] < b.second[1]))
+              || ((a.second[0] == b.second[0])
+               && (a.second[1] == b.second[1])
+               && (a.second[2] < b.second[2]))
+              || ((a.second[0] == b.second[0])
+               && (a.second[1] == b.second[1])
+               && (a.second[2] == b.second[2])
+               && (a.second[3] < b.second[3]));
+        };
+        unsigned int best_bin = (*std::min_element(bin_stats.begin()
+                                                 , bin_stats.end()
+                                                 , bin_stats_comp)).first;
+        // compute best shift
+        barriers[i_col] = -180 + (best_bin * binwidth) + 0.5 * binwidth;
+      }
+      return _shift_barrier(barriers);
+    }
+
+    std::vector<double>
+    _dih_shifts_dynamic(const std::string filename
+                      , std::size_t max_chunk_size) {
       // get number of columns from file
       std::size_t n_cols;
       {
@@ -163,36 +287,18 @@ namespace FastPCA {
       // histogram for first guess (72 bins of 5 degrees width, [-180, 180])
       const std::size_t n_bins = 72;
       const float binwidth = 5.0;
-      std::vector<std::vector<unsigned int>> hists(n_cols, std::vector<unsigned int>(n_bins));
-      // compute histograms
-      {
-        DataFileReader<double> input_file(filename, max_chunk_size);
-        read_blockwise(input_file
-                     , [&hists,binwidth](Matrix<double>& m) {
-          std::size_t i, j, i_bin;
-          std::size_t n_rows = m.n_rows();
-          std::size_t n_cols = m.n_cols();
-          #pragma omp parallel for default(none)\
-                                   private(j,i,i_bin)\
-                                   firstprivate(n_cols,n_rows,n_bins,binwidth)\
-                                   shared(hists,m)
-          for (j=0; j < m.n_cols(); ++j) {
-            for (i=0; i < m.n_rows(); ++i) {
-              for (i_bin=0; i_bin < n_bins; ++i_bin) {
-                if (m(i,j) <= -180.0f + (i_bin+1)*binwidth) {
-                  ++hists[j][i_bin];
-                  break;
-                }
-              }
-            }
-          }
-        });
-      }
+      std::vector<std::vector<unsigned int>> hists =
+        _shift_hists(filename
+                   , max_chunk_size
+                   , n_bins
+                   , binwidth);
       // compute min-shift candidates from histograms
       const int n_min_bins = 5;
       const int n_values_per_bin = 5;
       const int n_candidates_per_col = n_min_bins * n_values_per_bin;
-      std::vector<std::vector<float>> candidates(n_cols, std::vector<float>(n_candidates_per_col));
+      std::vector<std::vector<float>>
+        candidates(n_cols
+                 , std::vector<float>(n_candidates_per_col));
       for (std::size_t j=0; j < n_cols; ++j) {
         // 5 smallest bins
         std::vector<std::size_t> min_bins(5, 0);
@@ -210,16 +316,22 @@ namespace FastPCA {
         //   with deg(bin) degree value of bin (lower boundary).
         for (std::size_t i_min_bin=0; i_min_bin < n_min_bins; ++i_min_bin) {
           for (std::size_t k=0; k < n_values_per_bin; ++k) {
-            candidates[j][i_min_bin*n_min_bins + k] = min_bins[i_min_bin]*binwidth + k -180.0f;
+            candidates[j][i_min_bin*n_min_bins + k] =
+              min_bins[i_min_bin]*binwidth + k -180.0f;
           }
         }
       }
       // compute ranking for different shifts
-      std::vector<std::vector<unsigned int>> n_jumps(n_cols, std::vector<unsigned int>(n_candidates_per_col));
+      std::vector<std::vector<unsigned int>>
+        n_jumps(n_cols
+              , std::vector<unsigned int>(n_candidates_per_col));
       {
-        DataFileReader<double> input_file(filename, max_chunk_size);
+        DataFileReader<double> input_file(filename, max_chunk_size/2);
         read_blockwise(input_file
-                     , [&n_jumps,&candidates,n_cols,n_candidates_per_col] (Matrix<double>& m) {
+                     , [&n_jumps
+                      , &candidates
+                      , n_cols
+                      , n_candidates_per_col] (Matrix<double>& m) {
           std::size_t j;
           std::size_t ic;
           #pragma omp parallel for default(none)\
@@ -246,35 +358,38 @@ namespace FastPCA {
         }
         shifts[j] = candidates[j][i_min];
       }
-      // shift not to center, but to barrier
-      for (double& s: shifts) {
-        s += 180.0;
-        if (s > 180.0) {
-          s -= 360.0;
-        }
-      }
-      deg2rad_inplace(shifts);
-      return shifts;
+      // put cut points on periodic barriers
+      return _shift_barrier(shifts);
     }
 
     Matrix<double>
     _stats(const std::string filename
          , const std::size_t max_chunk_size
-         , bool periodic) {
+         , bool periodic
+         , bool dynamic_shift) {
       std::vector<double> means;
       std::size_t n_rows, n_cols;
       // means
       if (periodic) {
-        std::tie(n_rows, n_cols, means) = _circular_means(filename, max_chunk_size);
+        std::tie(n_rows, n_cols, means) = _circular_means(filename
+                                                        , max_chunk_size);
       } else {
-        std::tie(n_rows, n_cols, means) = _means(filename, max_chunk_size);
+        std::tie(n_rows, n_cols, means) = _means(filename
+                                               , max_chunk_size);
       }
       // sigmas
-      std::vector<double> sigmas = _sigmas(filename, max_chunk_size, means, periodic);
+      std::vector<double> sigmas = _sigmas(filename
+                                         , max_chunk_size
+                                         , means
+                                         , periodic);
       // shifts
       std::vector<double> shifts;
-      if (periodic) {
-        shifts = _dih_shifts(filename, max_chunk_size);
+      if (periodic && dynamic_shift) {
+        shifts = _dih_shifts_dynamic(filename
+                                   , max_chunk_size);
+      } else if (periodic && ( ! dynamic_shift)) {
+        shifts = _dih_shifts_static(filename
+                                  , max_chunk_size);
       }
       int n_cols_out;
       if (periodic) {
@@ -312,7 +427,10 @@ namespace FastPCA {
   Matrix<double>
   stats(const std::string filename
       , const std::size_t max_chunk_size) {
-    return _stats(filename, max_chunk_size, false);
+    return _stats(filename
+                , max_chunk_size
+                , false
+                , false);
   }
 
 
@@ -329,8 +447,9 @@ namespace FastPCA {
 
     Matrix<double>
     stats(const std::string filename
-        , const std::size_t max_chunk_size) {
-      return _stats(filename, max_chunk_size, true);
+        , const std::size_t max_chunk_size
+        , const bool dynamic_shift) {
+      return _stats(filename, max_chunk_size, true, dynamic_shift);
     }
 
   } // end namespace FastPCA::Periodic
