@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <fstream>
 #include <memory>
+#include <functional>
 
 #include "matrix.hpp"
 #include "util.hpp"
