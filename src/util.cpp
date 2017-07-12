@@ -36,7 +36,8 @@ namespace FastPCA {
   namespace {
     std::tuple<std::size_t, std::size_t, std::vector<double>>
     _means(const std::string filename
-         , const std::size_t max_chunk_size) {
+         , const std::size_t max_chunk_size
+         , std::vector<double> shifts = {}) {
       DataFileReader<double> input_file(filename, max_chunk_size);
       std::size_t n_cols = input_file.n_cols();
       std::size_t n_rows = 0;
@@ -44,6 +45,11 @@ namespace FastPCA {
       Matrix<double> m = std::move(input_file.next_block());
       while (m.n_rows() > 0) {
         n_rows += m.n_rows();
+        // correction for periodic data
+        if (shifts.size() > 0) {
+          FastPCA::deg2rad_inplace(m);
+          FastPCA::Periodic::shift_matrix_columns_inplace(m, shifts);
+        }
         for (std::size_t i=0; i < m.n_rows(); ++i) {
           for (std::size_t j=0; j < n_cols; ++j) {
             means[j] += m(i,j);
@@ -56,46 +62,47 @@ namespace FastPCA {
       }
       return std::make_tuple(n_rows, n_cols, means);
     }
-
+    
     // compute circular means by averaging sines and cosines
     // and resolving the mean angle with the atan2 function.
     // additionally, return number of observations.
-    std::tuple<std::size_t, std::size_t, std::vector<double>>
-    _circular_means(const std::string filename
-                  , const std::size_t max_chunk_size) {
-      DataFileReader<double> input_file(filename, max_chunk_size);
-      Matrix<double> m = std::move(input_file.next_block());
-      FastPCA::deg2rad_inplace(m);
-      std::size_t i, j;
-      std::size_t nr = m.n_rows();
-      std::size_t nc = m.n_cols();
-      std::vector<double> means(nc, 0.0);
-      std::vector<double> means_sin(nc, 0.0);
-      std::vector<double> means_cos(nc, 0.0);
-      std::size_t n_rows_total = 0;
-      while (nr > 0) {
-        for (j=0; j < nc; ++j) {
-          for (i=0; i < nr; ++i) {
-            means_sin[j] += sin(m(i,j));
-            means_cos[j] += cos(m(i,j));
-          }
-        }
-        n_rows_total += nr;
-        m = std::move(input_file.next_block());
-        FastPCA::deg2rad_inplace(m);
-        nr = m.n_rows();
-      }
-      for (j=0; j < nc; ++j) {
-        means[j] = std::atan2(means_sin[j]/n_rows_total, means_cos[j]/n_rows_total);
-      }
-      return std::make_tuple(n_rows_total, nc, means);
-    }
+//    std::tuple<std::size_t, std::size_t, std::vector<double>>
+//    _circular_means(const std::string filename
+//                  , const std::size_t max_chunk_size) {
+//      DataFileReader<double> input_file(filename, max_chunk_size);
+//      Matrix<double> m = std::move(input_file.next_block());
+//      FastPCA::deg2rad_inplace(m);
+//      std::size_t i, j;
+//      std::size_t nr = m.n_rows();
+//      std::size_t nc = m.n_cols();
+//      std::vector<double> means(nc, 0.0);
+//      std::vector<double> means_sin(nc, 0.0);
+//      std::vector<double> means_cos(nc, 0.0);
+//      std::size_t n_rows_total = 0;
+//      while (nr > 0) {
+//        for (j=0; j < nc; ++j) {
+//          for (i=0; i < nr; ++i) {
+//            means_sin[j] += sin(m(i,j));
+//            means_cos[j] += cos(m(i,j));
+//          }
+//        }
+//        n_rows_total += nr;
+//        m = std::move(input_file.next_block());
+//        FastPCA::deg2rad_inplace(m);
+//        nr = m.n_rows();
+//      }
+//      for (j=0; j < nc; ++j) {
+//        means[j] = std::atan2(means_sin[j]/n_rows_total
+//                            , means_cos[j]/n_rows_total);
+//      }
+//      return std::make_tuple(n_rows_total, nc, means);
+//    }
 
     std::vector<double>
     _sigmas(const std::string filename
           , const std::size_t max_chunk_size
           , std::vector<double> means
-          , bool periodic) {
+          , std::vector<double> shifts = {}) {
       DataFileReader<double> input_file(filename, max_chunk_size);
       std::size_t n_cols = means.size();
       std::size_t n_rows = 0;
@@ -103,13 +110,12 @@ namespace FastPCA {
       Matrix<double> m = std::move(input_file.next_block());
       while (m.n_rows() > 0) {
         n_rows += m.n_rows();
-        // subtract means
-        if (periodic) {
+        // periodic correction
+        if (shifts.size() > 0) {
           FastPCA::deg2rad_inplace(m);
-          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-        } else {
-          FastPCA::shift_matrix_columns_inplace(m, means);
+          FastPCA::Periodic::shift_matrix_columns_inplace(m, shifts);
         }
+        FastPCA::shift_matrix_columns_inplace(m, means);
         // compute variances
         for (std::size_t i=0; i < m.n_rows(); ++i) {
           for (std::size_t j=0; j < n_cols; ++j) {
@@ -368,20 +374,8 @@ namespace FastPCA {
          , bool periodic
          , bool dynamic_shift) {
       std::vector<double> means;
+      std::vector<double> sigmas;
       std::size_t n_rows, n_cols;
-      // means
-      if (periodic) {
-        std::tie(n_rows, n_cols, means) = _circular_means(filename
-                                                        , max_chunk_size);
-      } else {
-        std::tie(n_rows, n_cols, means) = _means(filename
-                                               , max_chunk_size);
-      }
-      // sigmas
-      std::vector<double> sigmas = _sigmas(filename
-                                         , max_chunk_size
-                                         , means
-                                         , periodic);
       // shifts
       std::vector<double> shifts;
       if (periodic && dynamic_shift) {
@@ -391,6 +385,23 @@ namespace FastPCA {
         shifts = _dih_shifts_static(filename
                                   , max_chunk_size);
       }
+      // means & sigmas
+      if (periodic) {
+        std::tie(n_rows, n_cols, means) = _means(filename
+                                               , max_chunk_size
+                                               , shifts);
+        sigmas = _sigmas(filename
+                       , max_chunk_size
+                       , means
+                       , shifts);
+      } else {
+        std::tie(n_rows, n_cols, means) = _means(filename
+                                               , max_chunk_size);
+        sigmas = _sigmas(filename
+                       , max_chunk_size
+                       , means);
+      }
+      // output
       int n_cols_out;
       if (periodic) {
         n_cols_out = 3;

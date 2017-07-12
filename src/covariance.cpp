@@ -49,12 +49,14 @@ namespace FastPCA {
 
   namespace {
 
-    _CovAccumulation::_CovAccumulation(SymmetricMatrix<double> m, std::size_t n)
+    _CovAccumulation::_CovAccumulation(SymmetricMatrix<double> m
+                                     , std::size_t n)
       : m(m),
         n_observations(n) {
     }
 
-    _CovAccumulation::_CovAccumulation(std::size_t n_observations, std::size_t n_observables)
+    _CovAccumulation::_CovAccumulation(std::size_t n_observations
+                                     , std::size_t n_observables)
       : m(SymmetricMatrix<double>(n_observables)),
         n_observations(n_observations) {
     }
@@ -86,7 +88,8 @@ namespace FastPCA {
     }
 
     _CovAccumulation
-    _join_accumulations(const _CovAccumulation& c1, const _CovAccumulation& c2) {
+    _join_accumulations(const _CovAccumulation& c1
+                      , const _CovAccumulation& c2) {
       assert(c1.m.n_cols() == c2.m.n_cols());
       return {c1.m+c2.m, c1.n_observations+c2.n_observations};
     }
@@ -111,10 +114,12 @@ namespace FastPCA {
                      , Matrix<double> stats) {
       std::size_t n_variables = stats.n_rows();
       std::vector<double> means(n_variables);
+      std::vector<double> shifts(n_variables);
       std::vector<double> inverse_sigmas(n_variables);
       for (std::size_t i=0; i < n_variables; ++i) {
         means[i] = stats(i,0);
         inverse_sigmas[i] = 1.0 / stats(i,1);
+        shifts[i] = stats(i,2);
       }
       // take only half size because of intermediate results.
       std::size_t chunk_size = max_chunk_size / 2;
@@ -126,16 +131,18 @@ namespace FastPCA {
       _CovAccumulation acc(0, n_cols);
       Matrix<double> m = std::move(input_file.next_block());
       while (m.n_rows() > 0) {
-        // center data
+        // periodic correction
         if (periodic) {
           FastPCA::deg2rad_inplace(m);
-          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
-        } else {
-          FastPCA::shift_matrix_columns_inplace(m, means);
+          FastPCA::Periodic::shift_matrix_columns_inplace(m
+                                                        , shifts);
         }
+        // center data
+        FastPCA::shift_matrix_columns_inplace(m, means);
         // normalize columns by dividing by sigma
         if (use_correlation) {
-          FastPCA::scale_matrix_columns_inplace(m, inverse_sigmas);
+          FastPCA::scale_matrix_columns_inplace(m
+                                              , inverse_sigmas);
         }
         acc = _join_accumulations(acc, _accumulate_covariance(m));
         m = std::move(input_file.next_block());
@@ -154,7 +161,11 @@ namespace FastPCA {
                     , const std::size_t max_chunk_size
                     , bool use_correlation
                     , Matrix<double> stats) {
-      return _covariance_matrix(filename, max_chunk_size, use_correlation, true, stats);
+      return _covariance_matrix(filename
+                              , max_chunk_size
+                              , use_correlation
+                              , true
+                              , stats);
     }
   } // end namespace FastPCA::Periodic
 
@@ -163,7 +174,11 @@ namespace FastPCA {
                   , const std::size_t max_chunk_size
                   , bool use_correlation
                   , Matrix<double> stats) {
-    return _covariance_matrix(filename, max_chunk_size, use_correlation, false, stats);
+    return _covariance_matrix(filename
+                            , max_chunk_size
+                            , use_correlation
+                            , false
+                            , stats);
   }
 } // end namespace FastPCA
 

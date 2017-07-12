@@ -118,18 +118,11 @@ namespace FastPCA {
       std::size_t n_variables = stats.n_rows();
       std::vector<double> means(n_variables);
       std::vector<double> inverse_sigmas(n_variables);
-      std::vector<double> dih_shifts(n_variables);
-      std::vector<double> scaled_periodicities(n_variables);
+      std::vector<double> shifts(n_variables);
       for (std::size_t i=0; i < n_variables; ++i) {
         means[i] = stats(i,0);
         inverse_sigmas[i] = 1.0 / stats(i,1);
-        if (use_correlation) {
-          dih_shifts[i] = (stats(i,2) - means[i]) * inverse_sigmas[i];
-          scaled_periodicities[i] = 2*M_PI * inverse_sigmas[i];
-        } else {
-          dih_shifts[i] = stats(i,2);
-          scaled_periodicities[i] = 2*M_PI;
-        }
+        shifts[i] = stats(i,2);
       }
       // projections
       bool append_to_file = false;
@@ -138,15 +131,11 @@ namespace FastPCA {
       read_blockwise(fh_file_in, [&](Matrix<double>& m) {
         // convert degrees to radians
         FastPCA::deg2rad_inplace(m);
+        FastPCA::Periodic::shift_matrix_columns_inplace(m, shifts);
         if (use_correlation) {
-          // shift by periodic means (necessary for scaling)
-          FastPCA::Periodic::shift_matrix_columns_inplace(m, means);
           // scale data by sigmas for correlated projections
           FastPCA::scale_matrix_columns_inplace(m, inverse_sigmas);
         }
-        // shift dihedrals to minimize boundary jumps
-        // and correct for periodic boundary condition
-        FastPCA::Periodic::shift_matrix_columns_inplace(m, dih_shifts, scaled_periodicities);
         // output
         fh_file_out.write(m*eigenvecs, append_to_file);
         append_to_file = true;
