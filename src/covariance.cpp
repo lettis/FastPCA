@@ -119,7 +119,9 @@ namespace FastPCA {
       for (std::size_t i=0; i < n_variables; ++i) {
         means[i] = stats(i,0);
         inverse_sigmas[i] = 1.0 / stats(i,1);
-        shifts[i] = stats(i,2);
+        if (periodic) {
+          shifts[i] = stats(i,2);
+        }
       }
       // take only half size because of intermediate results.
       std::size_t chunk_size = max_chunk_size / 2;

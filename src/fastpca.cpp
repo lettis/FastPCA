@@ -128,11 +128,12 @@ int main(int argc, char* argv[]) {
       bool input_covmat_file_given = check_file_given("cov-in");
       bool input_eigenvec_file_given = check_file_given("vec-in");
       bool input_stats_file_given = check_file_given("stats-in");
-  
-      if ( projection_file_given
-        || eigenval_file_given
-        || eigenvec_file_given
-        || covmat_file_given
+
+      bool need_covmat = projection_file_given
+                      || eigenval_file_given
+                      || eigenvec_file_given
+                      || covmat_file_given;
+      if ( need_covmat
         || stats_file_given) {
   
         std::size_t nthreads = args["nthreads"].as<std::size_t>();
@@ -214,47 +215,49 @@ int main(int argc, char* argv[]) {
                       << std::endl;
           }
         } else {
-          if (input_covmat_file_given) {
-            // -C ?
-            verbose
-              && std::cerr << "loading covariance matrix from file"
-                           << std::endl;
-            FastPCA::DataFileReader<double>
-              cov_in(args["cov-in"].as<std::string>());
-            cov = FastPCA::SymmetricMatrix<double>(
-                    cov_in.next_block(cov_in.n_cols()));
-          } else {
-            if (periodic) {
+          if (need_covmat) {
+            if (input_covmat_file_given) {
+              // -C ?
               verbose
-                && ( ! use_correlation)
-                && std::cerr << "constructing covariance matrix"
-                                " for periodic data"
+                && std::cerr << "loading covariance matrix from file"
                              << std::endl;
-              verbose
-                && use_correlation
-                && std::cerr << "constructing correlation matrix"
-                                " for periodic data"
-                             << std::endl;
-              cov = FastPCA::Periodic::covariance_matrix(file_input
-                                                       , mem_buf_size
-                                                       , use_correlation
-                                                       , stats);
+              FastPCA::DataFileReader<double>
+                cov_in(args["cov-in"].as<std::string>());
+              cov = FastPCA::SymmetricMatrix<double>(
+                      cov_in.next_block(cov_in.n_cols()));
             } else {
-              verbose
-                && ( ! use_correlation)
-                && std::cerr << "constructing covariance matrix"
-                             << std::endl;
-              verbose
-                && use_correlation
-                && std::cerr << "constructing correlation matrix"
-                             << std::endl;
-              cov = FastPCA::covariance_matrix(file_input
-                                             , mem_buf_size
-                                             , use_correlation
-                                             , stats);
+              if (periodic) {
+                verbose
+                  && ( ! use_correlation)
+                  && std::cerr << "constructing covariance matrix"
+                                  " for periodic data"
+                               << std::endl;
+                verbose
+                  && use_correlation
+                  && std::cerr << "constructing correlation matrix"
+                                  " for periodic data"
+                               << std::endl;
+                cov = FastPCA::Periodic::covariance_matrix(file_input
+                                                         , mem_buf_size
+                                                         , use_correlation
+                                                         , stats);
+              } else {
+                verbose
+                  && ( ! use_correlation)
+                  && std::cerr << "constructing covariance matrix"
+                               << std::endl;
+                verbose
+                  && use_correlation
+                  && std::cerr << "constructing correlation matrix"
+                               << std::endl;
+                cov = FastPCA::covariance_matrix(file_input
+                                               , mem_buf_size
+                                               , use_correlation
+                                               , stats);
+              }
             }
+            vecs = cov.eigenvectors();
           }
-          vecs = cov.eigenvectors();
         }
         //// output
         // -c ?
